@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <main className="flex-1 p-6 bg-background overflow-auto">
               {children}
             </main>
+            <SpeedInsights />
           </ThemeProvider>
         </body>
       </html>
@@ -119,6 +121,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </div>
             </main>
           </div>
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>
@@ -221,4 +224,3 @@ function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTML
     />
   )
 }
-
