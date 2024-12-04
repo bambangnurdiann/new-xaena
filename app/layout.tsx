@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { NavItem } from '@/components/NavItem'
@@ -59,9 +60,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html lang="en" suppressHydrationWarning>
         <body className="bg-background text-foreground">
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <main className="flex-1 p-6 bg-background overflow-auto">
-              {children}
-            </main>
+            <TooltipProvider>
+              <main className="flex-1 p-6 bg-background overflow-auto">
+                {children}
+              </main>
+            </TooltipProvider>
             <Toaster />
             <SpeedInsights />
           </ThemeProvider>
@@ -74,50 +77,52 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className="bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <div className="flex min-h-screen">
-            <aside
-              className={cn(
-                "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300",
-                isSidebarOpen ? "w-64" : "w-20"
-              )}
-            >
-              <ScrollArea className="flex-1">
-                <div className="p-4 flex items-center justify-between">
-                  {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
-                  <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-                    <Menu className="h-6 w-6" />
-                  </Button>
-                </div>
-                <nav className="space-y-2 p-4">
-                  <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
-                  <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
-                  <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
-                  {currentUser === '96312' && (
-                    <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
-                  )}
-                  <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
-                </nav>
-              </ScrollArea>
+          <TooltipProvider>
+            <div className="flex min-h-screen">
+              <aside
+                className={cn(
+                  "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300",
+                  isSidebarOpen ? "w-64" : "w-20"
+                )}
+              >
+                <ScrollArea className="flex-1">
+                  <div className="p-4 flex items-center justify-between">
+                    {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
+                    <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+                      <Menu className="h-6 w-6" />
+                    </Button>
+                  </div>
+                  <nav className="space-y-2 p-4">
+                    <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
+                    <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
+                    <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
+                    {currentUser === '96312' && (
+                      <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
+                    )}
+                    <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
+                  </nav>
+                </ScrollArea>
 
-              <div className="p-4">
-                <ProfileMenu userId={currentUser} />
-              </div>
-            </aside>
-
-            <main className="flex-1 p-6 bg-background overflow-auto">
-              <div className="max-w-7xl mx-auto">
-                <div className="flex justify-end mb-4">
-                  <ThemeToggle />
+                <div className="p-4">
+                  <ProfileMenu userId={currentUser} />
                 </div>
-                {children}
-              </div>
-            </main>
-          </div>
+              </aside>
+
+              <main className="flex-1 p-6 bg-background overflow-auto">
+                <div className="max-w-7xl mx-auto">
+                  <div className="flex justify-end mb-4">
+                    <ThemeToggle />
+                  </div>
+                  {children}
+                </div>
+              </main>
+            </div>
+          </TooltipProvider>
           <Toaster />
           <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>
   )
-} 
+}
 
