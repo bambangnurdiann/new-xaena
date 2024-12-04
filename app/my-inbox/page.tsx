@@ -16,20 +16,6 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 const CurrentTicketCard = lazy(() => import('@/components/CurrentTicketCard'))
 const NoTicketCard = lazy(() => import('@/components/NoTicketCard'))
 
-// interface Ticket {
- // Incident: string
- // "Detail Case"?: string
- // Analisa?: string
- // "Escalation Level"?: string
- // assignedTo?: string
- // lastAssignedTime?: number
- //// status?: string
- // category?: string
- /// level?: string
- // SID?: string
-//  TTR?: number
-//}
-
 export default function MyInbox() {
   const [mounted, setMounted] = useState(false)
   const [loggedInUsername, setLoggedInUsername] = useState<string | null>(null)
