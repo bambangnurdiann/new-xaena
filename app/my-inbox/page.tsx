@@ -16,6 +16,20 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 const CurrentTicketCard = lazy(() => import('@/components/CurrentTicketCard'))
 const NoTicketCard = lazy(() => import('@/components/NoTicketCard'))
 
+ interface Ticket {
+  Incident: string
+  "Detail Case"?: string
+  Analisa?: string
+  "Escalation Level"?: string
+  assignedTo?: string
+  lastAssignedTime?: number
+  status?: string
+  category?: string
+  level?: string
+  SID?: string
+  TTR?: number
+}
+
 export default function MyInbox() {
   const [mounted, setMounted] = useState(false)
   const [loggedInUsername, setLoggedInUsername] = useState<string | null>(null)
@@ -29,7 +43,7 @@ export default function MyInbox() {
   const [detailCase, setDetailCase] = useState('')
   const [analisa, setAnalisa] = useState('')
   const [escalationLevel, setEscalationLevel] = useState<string>('1')
-  const availableLevels = ['1', '2', '3']
+  const [availableLevels, setAvailableLevels] = useState<string[]>(['1', '2', '3']) // Added state for availableLevels
   const auxReasons = ['Coffee Break', 'Meeting', 'Other']
 
   // Note: If dynamic updates to availableLevels or auxReasons are needed in the future,
@@ -64,6 +78,22 @@ export default function MyInbox() {
     }
     return () => clearInterval(pauseInterval);
   }, [isPaused]);
+
+  const getAvailableLevels = useCallback((ticket: Ticket): string[] => {
+    const levels = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7']
+    const currentLevelIndex = levels.indexOf(ticket.level || 'L1')
+    let maxLevel = 'L7'
+
+    if (ticket.category === 'K2') maxLevel = 'L3'
+    else if (ticket.category === 'K3') maxLevel = 'L2'
+    else if (ticket.category !== 'K1') {
+      console.warn(`Unknown category: ${ticket.category}`)
+      maxLevel = 'L1'
+    }
+
+    const maxLevelIndex = levels.indexOf(maxLevel)
+    return levels.slice(currentLevelIndex, maxLevelIndex + 1)
+  }, [])
 
   const formatTime = (milliseconds: number) => {
     const seconds = Math.floor((milliseconds / 1000) % 60);
@@ -194,11 +224,13 @@ export default function MyInbox() {
 
       const userTickets = await response.json()
       if (userTickets.length > 0) {
-        setCurrentTicket(userTickets[0])
-        sessionStorage.setItem('currentTicket', JSON.stringify(userTickets[0]))
+        const nextTicket = userTickets[0] as Ticket; // Type assertion
+        setAvailableLevels(getAvailableLevels(nextTicket)); // Update availableLevels
+        setCurrentTicket(nextTicket)
+        sessionStorage.setItem('currentTicket', JSON.stringify(nextTicket))
         toast({
           title: "Next Ticket Assigned",
-          description: `Ticket ${userTickets[0].Incident} has been assigned to you.`,
+          description: `Ticket ${nextTicket.Incident} has been assigned to you.`,
           variant: "default",
         })
       } else {
@@ -212,7 +244,7 @@ export default function MyInbox() {
         variant: "destructive",
       })
     }
-  }, [loggedInUsername, handleNoTicketsAvailable, toast])
+  }, [loggedInUsername, handleNoTicketsAvailable, toast, getAvailableLevels])
 
   const handleSubmit = async () => {
     try {
@@ -401,4 +433,5 @@ export default function MyInbox() {
     </motion.main>
   )
 }
+
 
