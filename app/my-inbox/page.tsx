@@ -42,8 +42,8 @@ export default function MyInbox() {
   const [showUpdateAlert, setShowUpdateAlert] = useState(false)
   const [detailCase, setDetailCase] = useState('')
   const [analisa, setAnalisa] = useState('')
-  const [escalationLevel, setEscalationLevel] = useState<string>('1')
-  const [availableLevels, setAvailableLevels] = useState<string[]>(['1', '2', '3']) // Added state for availableLevels
+  const [escalationLevel, setEscalationLevel] = useState('')
+  const [availableLevels, setAvailableLevels] = useState<string[]>([])
   const auxReasons = ['Coffee Break', 'Meeting', 'Other']
 
   // Note: If dynamic updates to availableLevels or auxReasons are needed in the future,
