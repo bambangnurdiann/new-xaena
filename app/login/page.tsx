@@ -6,27 +6,37 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { useToast } from "@/components/ui/use-toast"
+import { Loader2 } from 'lucide-react'
 import { login } from './actions'
 
 export default function LoginPage() {
-  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const { toast } = useToast()
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setIsLoading(true)
     const formData = new FormData(event.currentTarget)
     
-    const result = await login(formData)
+    try {
+      const result = await login(formData)
 
-    if (result.success) {
-      const sessionToken = result.sessionToken
-      document.cookie = `session_token=${sessionToken}; path=/;`
+      if (result.success) {
+        const sessionToken = result.sessionToken
+        document.cookie = `session_token=${sessionToken}; path=/;`
 
-      try {
         const userResponse = await fetch('/api/checkLoggedInUsers')
         if (userResponse.ok) {
           const userData = await userResponse.json()
           localStorage.setItem('currentUser', JSON.stringify(userData.loggedInUsers[0]))
+
+          toast({
+            title: "Login Successful",
+            description: "You have been successfully logged in.",
+            variant: "default", // Changed from "success" to "default"
+          })
 
           if (userData.loggedInUsers[0] === '96312') {
             router.push('/admin/upload-tickets')
@@ -36,12 +46,22 @@ export default function LoginPage() {
         } else {
           throw new Error('Failed to fetch user data')
         }
-      } catch (error) {
-        console.error("Error fetching user data:", error)
-        setError('An error occurred while fetching user data')
+      } else if (result.error) {
+        toast({
+          title: "Login Failed",
+          description: result.error || 'An unknown error occurred',
+          variant: "destructive",
+        })
       }
-    } else if (result.error) {
-      setError(result.error || 'An unknown error occurred')
+    } catch (error) {
+      console.error("Error during login:", error)
+      toast({
+        title: "Error",
+        description: 'An error occurred while logging in. Please try again.',
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -74,10 +94,18 @@ export default function LoginPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button type="submit" className="w-full">Login</Button>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Logging in...
+                    </>
+                  ) : (
+                    'Login'
+                  )}
+                </Button>
               </CardFooter>
             </form>
-            {error && <p className="text-red-500 text-center mt-4">{error}</p>}
           </Card>
         </div>
       </div>
@@ -97,3 +125,4 @@ export default function LoginPage() {
     </div>
   )
 }
+
