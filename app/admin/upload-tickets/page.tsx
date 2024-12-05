@@ -35,7 +35,7 @@ export default function UploadTickets() {
    // Fetch the current user to check session status
    const fetchCurrentUser = useCallback(async () => {
     try {
-      const response = await fetch('/api/checkLoggedInUser'); // API to check the current user
+      const response = await fetch('/api/checkLoggedInUsers'); // API to check the current user
       if (response.ok) {
         const data = await response.json();
         setCurrentUser(data.userId || null);
