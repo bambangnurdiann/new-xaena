@@ -2,10 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { LogOut, Ticket, UserCheck, AlertCircle, Clock } from 'lucide-react'
+import { Ticket, UserCheck, AlertCircle, Clock } from 'lucide-react'
 import { useToast } from "@/components/ui/use-toast"
 
 interface TicketStats {
@@ -27,7 +26,6 @@ export default function Dashboard() {
   const fetchTicketStats = useCallback(async () => {
     try {
       const response = await fetch('/api/ticket-stats', {
-        // Add cache control headers to prevent caching
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
@@ -59,7 +57,7 @@ export default function Dashboard() {
         const data = await response.json()
         setIsAuthenticated(data.isAuthenticated)
         if (!data.isAuthenticated) {
-          router.push('/')
+          router.push('/login')
         }
       } catch (error) {
         console.error('Error checking auth:', error)
@@ -77,54 +75,31 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      // Initial fetch
       fetchTicketStats();
-
-      // Set up polling every 3 seconds
       const pollInterval = setInterval(fetchTicketStats, 3000);
-
-      // Cleanup interval on unmount
       return () => clearInterval(pollInterval);
     }
   }, [isAuthenticated, fetchTicketStats]);
 
- // const handleLogout = async () => {
- //   try {
-  //    const response = await fetch('/api/auth/logout', { method: 'POST' })
-  //    if (response.ok) {
-    //    router.push('/')
-   //   } else {
-   //     throw new Error('Failed to log out');
-  //    }
-  //  } catch (error) {
-  //    console.error('Error during logout:', error)
-  //    toast({
-   //     title: "Error",
-   //     description: "Failed to log out. Please try again.",
-  //      variant: "destructive",
-   //   });
- //   }
- // }
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="space-y-4">
+          <Skeleton className="h-12 w-48" />
+          <Skeleton className="h-4 w-36" />
+        </div>
+      </div>
+    );
+  }
 
-//  if (loading) {
- //   return (
-  //    <div className="flex items-center justify-center min-h-screen">
-  //      <div className="space-y-4">
-  //        <Skeleton className="h-12 w-48" />
-  //        <Skeleton className="h-4 w-36" />
-   //     </div>
-  //    </div>
-  //  );
- // }
-
-//  if (!isAuthenticated) {
-//    return null;
-//  }
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <h1 className="text-3xl font-bold text-gray-900">Ticket Monitoring Dashboard</h1>
         </div>
       </header>
@@ -195,4 +170,3 @@ function StatsCard({ title, value, icon, description }: { title: string, value?:
     </Card>
   )
 }
-
