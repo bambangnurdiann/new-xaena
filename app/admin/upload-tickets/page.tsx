@@ -1,33 +1,65 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import Papa from 'papaparse'
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useToast } from "@/components/ui/use-toast"
-import { useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation'; // Import useRouter for navigation
+import Papa from 'papaparse';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
 
 interface Ticket {
-  _id?: string; // Add the _id field, marked optional
-  Incident: string
-  assignedTo?: string
-  lastAssignedTime?: number
-  status?: string
-  SID?: string
-  TTR: string
-  category?: string
-  level?: string
+  _id?: string;
+  Incident: string;
+  assignedTo?: string;
+  lastAssignedTime?: number;
+  status?: string;
+  SID?: string;
+  TTR: string;
+  category?: string;
+  level?: string;
 }
 
 
-export default function UploadTickets() {
-  const [csvData, setCsvData] = useState<Ticket[]>([])
-  const [existingTickets, setExistingTickets] = useState<Ticket[]>([])
-  const [loggedInUsers, setLoggedInUsers] = useState<string[]>([])
-  const [isUploading, setIsUploading] = useState(false)
-  const [isCategorizing, setIsCategorizing] = useState(false)
-  const { toast } = useToast()
 
+export default function UploadTickets() {
+  const [csvData, setCsvData] = useState<Ticket[]>([]);
+  const [existingTickets, setExistingTickets] = useState<Ticket[]>([]);
+  const [loggedInUsers, setLoggedInUsers] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isCategorizing, setIsCategorizing] = useState(false);
+  const [currentUser, setCurrentUser] = useState<string | null>(null); // Add currentUser state
+  const { toast } = useToast();
+  const router = useRouter();
+
+
+   // Fetch the current user to check session status
+   const fetchCurrentUser = useCallback(async () => {
+    try {
+      const response = await fetch('/api/checkLoggedInUser'); // API to check the current user
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentUser(data.userId || null);
+        if (!data.userId) {
+          router.push('/login'); // Redirect to login if user is not authenticated
+        }
+      } else {
+        throw new Error('Failed to fetch user');
+      }
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+      router.push('/login'); // Redirect to login on error
+    }
+  }, [router]);
+
+  useEffect(() => {
+    fetchCurrentUser();
+  }, [fetchCurrentUser]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      router.push('/login'); // Redirect to login if no user is found
+    }
+  }, [currentUser, router]);
 
 
   const fetchExistingTickets = useCallback(async () => {
@@ -328,28 +360,28 @@ export default function UploadTickets() {
     }
   }
 
-  return (
+  return currentUser ? (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle>Upload and Distribute Tickets (Admin Only)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-        <p className="text-sm text-gray-600 mb-2">
-  Upload a CSV file with &quot;Incident&quot;, &quot;SID&quot;, &quot;TTR&quot;, and &quot;category&quot; columns.
-</p>
-<input
-  type="file"
-  accept=".csv"
-  onChange={handleFileUpload}  // Pastikan handleFileUpload digunakan di sini
-  className="mb-4 block w-full text-sm text-gray-500
-    file:mr-4 file:py-2 file:px-4
-    file:rounded-md file:border-0
-    file:text-sm file:font-semibold
-    file:bg-blue-50 file:text-blue-700
-    hover:file:bg-blue-100"
-  disabled={isUploading || isCategorizing}
-/>
+          <p className="text-sm text-gray-600 mb-2">
+            Upload a CSV file with &quot;Incident&quot;, &quot;SID&quot;, &quot;TTR&quot;, and &quot;category&quot; columns.
+          </p>
+          <input
+            type="file"
+            accept=".csv"
+            onChange={handleFileUpload}
+            className="mb-4 block w-full text-sm text-gray-500
+              file:mr-4 file:py-2 file:px-4
+              file:rounded-md file:border-0
+              file:text-sm file:font-semibold
+              file:bg-blue-50 file:text-blue-700
+              hover:file:bg-blue-100"
+            disabled={isUploading || isCategorizing}
+          />
           {(isUploading || isCategorizing) && (
             <p className="text-blue-600">
               {isUploading ? 'Uploading...' : 'Categorizing tickets...'}
@@ -385,5 +417,5 @@ export default function UploadTickets() {
         </div>
       </CardContent>
     </Card>
-  )
-    }
+  ) : null;
+}
