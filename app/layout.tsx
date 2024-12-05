@@ -147,26 +147,30 @@ function NavItem({ href, icon: Icon, label, isOpen }: { href: string; icon: Reac
 function ProfileMenu({ userId }: { userId: string }) {
   const router = useRouter();
 
-  const handleLogout = async () => {
-    try {
-      const response = await fetch('/api/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
+const handleLogout = async () => {
+  try {
+    const response = await fetch('/api/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
 
-      if (response.ok) {
-        // Clear the local storage and session
-        localStorage.removeItem('currentUser');
-        sessionStorage.clear(); // Clear all session storage
-        document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"; // Clear session cookie
-        router.push('/login'); // Redirect to login page
-      } else {
-        console.error('Logout failed');
-      }
-    } catch (error) {
-      console.error('Error during logout:', error);
+    if (response.ok) {
+      // Clear localStorage, sessionStorage, and cookies
+      localStorage.removeItem('currentUser');
+      sessionStorage.clear();
+      document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+      // Redirect to login and refresh the page
+      router.push('/login');
+      setTimeout(() => window.location.reload(), 100); // Force a reload for a clean state
+    } else {
+      console.error('Logout failed');
     }
-  };
+  } catch (error) {
+    console.error('Error during logout:', error);
+  }
+};
+
 
   return (
     <DropdownMenu>
