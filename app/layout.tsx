@@ -154,10 +154,10 @@ function ProfileMenu({ userId }: { userId: string }) {
       });
 
       if (response.ok) {
-        // Reset user state and redirect to login
+        // Clear local storage and redirect to login
         localStorage.removeItem('currentUser');
-        router.push('/login');
-        window.location.reload(); // Reload to reset the app's state
+        router.push('/login'); // Redirect to login
+        setTimeout(() => window.location.reload(), 100); // Force page reload for a clean state
       } else {
         console.error('Logout failed');
       }
@@ -214,6 +214,7 @@ function ProfileMenu({ userId }: { userId: string }) {
     </DropdownMenu>
   );
 }
+
 
 function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
   return (
