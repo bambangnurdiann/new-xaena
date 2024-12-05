@@ -5,12 +5,10 @@ import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-// import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
-// import { Separator } from "@/components/ui/separator"
-import { Clock, Play, Pause, LogOut, RefreshCw, Send } from 'lucide-react'
+import { Clock, Play, Pause, StopCircle, RefreshCw, Send } from 'lucide-react'
 
 // Lazy load less critical components
 const CurrentTicketCard = lazy(() => import('@/components/CurrentTicketCard'))
@@ -77,7 +75,26 @@ export default function MyInbox() {
   const fetchNextTicketHandler = useCallback(async () => {
     try {
       console.log("Fetching the next ticket...")
-      // Add the logic to fetch the next ticket here
+      const response = await fetch('/api/ticketDistribution', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loggedInUsername }),
+      })
+
+      if (!response.ok) throw new Error('Failed to fetch next ticket')
+
+      const userTickets = await response.json()
+      if (userTickets.length > 0) {
+        const nextTicket = userTickets[0]
+        setCurrentTicket(nextTicket)
+        sessionStorage.setItem('currentTicket', JSON.stringify(nextTicket))
+        setDetailCase(nextTicket["Detail Case"] || '')
+        setAnalisa(nextTicket.Analisa || '')
+        setEscalationLevel(nextTicket["Escalation Level"] || nextTicket.level || '')
+        setAvailableLevels(getAvailableLevels(nextTicket))
+      } else {
+        handleNoTicketsAvailable()
+      }
     } catch (error) {
       console.error("Error fetching the next ticket:", error)
       toast({
@@ -86,7 +103,7 @@ export default function MyInbox() {
         variant: "destructive",
       })
     }
-  }, [toast])
+  }, [loggedInUsername, toast])
 
   useEffect(() => {
     const fetchTicketAndProgress = async () => {
@@ -98,6 +115,9 @@ export default function MyInbox() {
       if (storedTicket) {
         const parsedTicket = JSON.parse(storedTicket)
         setCurrentTicket(parsedTicket)
+        setDetailCase(parsedTicket["Detail Case"] || '')
+        setAnalisa(parsedTicket.Analisa || '')
+        setEscalationLevel(parsedTicket["Escalation Level"] || parsedTicket.level || '')
         setAvailableLevels(getAvailableLevels(parsedTicket))
       } else if (loggedInUsername) {
         fetchNextTicketHandler()
@@ -239,15 +259,20 @@ export default function MyInbox() {
 
       const userTickets = await response.json()
       if (userTickets.length > 0) {
-        setCurrentTicket(userTickets[0])
-        sessionStorage.setItem('currentTicket', JSON.stringify(userTickets[0]))
+        const nextTicket = userTickets[0]
+        setCurrentTicket(nextTicket)
+        sessionStorage.setItem('currentTicket', JSON.stringify(nextTicket))
+        setDetailCase(nextTicket["Detail Case"] || '')
+        setAnalisa(nextTicket.Analisa || '')
+        setEscalationLevel(nextTicket["Escalation Level"] || nextTicket.level || '')
+        setAvailableLevels(getAvailableLevels(nextTicket))
       } else {
         handleNoTicketsAvailable()
       }
     } catch (error) {
       console.error('Error during ticket distribution:', error)
     }
-  }, [loggedInUsername, handleNoTicketsAvailable])
+  }, [loggedInUsername, handleNoTicketsAvailable, getAvailableLevels])
 
   const handleAuxToggle = useCallback(() => {
     if (isPaused) {
@@ -272,6 +297,23 @@ export default function MyInbox() {
       sessionStorage.setItem('isPaused', 'true')
     }
   }, [isPaused, pauseReason, toast])
+
+  const handleStopWorking = useCallback(() => {
+    setIsWorking(false)
+    setCurrentTicket(null)
+    setIsPaused(false)
+    setPauseReason('')
+    setPauseDuration(0)
+    setWorkingDuration(0)
+    sessionStorage.removeItem('isWorking')
+    sessionStorage.removeItem('currentTicket')
+    toast({
+      title: "Stopped Working",
+      description: "You have stopped working. Your progress has been saved.",
+      variant: "default",
+    })
+  }, [toast])
+
 
   const handleLogout = useCallback(async () => {
     try {
@@ -314,21 +356,23 @@ export default function MyInbox() {
 
   const handleSubmit = useCallback(async () => {
     if (!currentTicket) {
+      console.error('No current ticket available');
       toast({
         title: "No Ticket Available",
         description: "There is no ticket to submit changes for.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     if (!detailCase || !analisa || !escalationLevel) {
+      console.error('Incomplete form data');
       toast({
         title: "Incomplete Form",
         description: "Please fill in all fields before submitting.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     const updatedTicket = {
@@ -337,42 +381,46 @@ export default function MyInbox() {
       Analisa: analisa,
       "Escalation Level": escalationLevel,
       status: 'Completed',
-    }
+    };
 
     try {
+      console.log('Submitting updated ticket:', updatedTicket);
       const response = await fetch('/api/updateTickets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(updatedTicket),
-      })
+      });
 
-      if (response.ok) {
-        toast({
-          title: "Ticket Updated",
-          description: "The ticket has been successfully updated.",
-        })
-
-        setCurrentTicket(null)
-        sessionStorage.removeItem('currentTicket')
-        setDetailCase('')
-        setAnalisa('')
-        setEscalationLevel('')
-
-        fetchNextTicket()
-      } else {
-        throw new Error('Failed to update ticket')
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      const result = await response.json();
+      console.log('Ticket update result:', result);
+
+      toast({
+        title: "Ticket Updated",
+        description: "The ticket has been successfully updated.",
+      });
+
+      setCurrentTicket(null);
+      sessionStorage.removeItem('currentTicket');
+      setDetailCase('');
+      setAnalisa('');
+      setEscalationLevel('');
+
+      fetchNextTicket();
     } catch (error) {
-      console.error('Error updating ticket:', error)
+      console.error('Error updating ticket:', error);
       toast({
         title: "Update Error",
         description: "An error occurred while updating the ticket. Please try again.",
         variant: "destructive",
-      })
+      });
     }
-  }, [currentTicket, detailCase, analisa, escalationLevel, toast, fetchNextTicket])
+  }, [currentTicket, detailCase, analisa, escalationLevel, toast, fetchNextTicket]);
 
   const formatTime = useCallback((seconds: number) => {
     const hours = Math.floor(seconds / 3600)
@@ -390,7 +438,8 @@ export default function MyInbox() {
             <AlertDescription>
               Tickets need to be updated! Please inform the administrator.
               <Button className="ml-4" onClick={() => setShowUpdateAlert(false)}>Dismiss</Button>
-            </AlertDescription></Alert>
+            </AlertDescription>
+          </Alert>
         )}
 
         <Card className="bg-white shadow-lg">
@@ -401,9 +450,9 @@ export default function MyInbox() {
                 <Badge variant="secondary" className="text-lg">
                   {loggedInUsername}
                 </Badge>
-                <Button onClick={handleLogout} variant="secondary" size="icon">
-                  <LogOut className="h-4 w-4" />
-                  <span className="sr-only">Logout</span>
+                <Button onClick={handleStopWorking} variant="secondary" size="icon">
+                  <StopCircle className="h-4 w-4" />
+                  <span className="sr-only">Stop Working</span>
                 </Button>
               </div>
             </div>
@@ -473,3 +522,4 @@ export default function MyInbox() {
     </main>
   )
 }
+
