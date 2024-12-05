@@ -154,10 +154,10 @@ function ProfileMenu({ userId }: { userId: string }) {
       });
 
       if (response.ok) {
-        // Clear local storage and redirect to login
+        // Clear the local storage and session
         localStorage.removeItem('currentUser');
-        router.push('/login'); // Redirect to login
-        setTimeout(() => window.location.reload(), 100); // Force page reload for a clean state
+        router.push('/login'); // Redirect to login page
+        window.location.reload(); // Force page reload to clean up the state
       } else {
         console.error('Logout failed');
       }
@@ -192,28 +192,25 @@ function ProfileMenu({ userId }: { userId: string }) {
         <DropdownMenuItem>
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
-          <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
         </DropdownMenuItem>
         <DropdownMenuItem>
           <Lock className="mr-2 h-4 w-4" />
           <span>Change Password</span>
-          <DropdownMenuShortcut>⌘B</DropdownMenuShortcut>
         </DropdownMenuItem>
         <DropdownMenuItem>
           <Shield className="mr-2 h-4 w-4" />
           <span>Activate 2FA</span>
-          <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
-          <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
+
 
 
 function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
