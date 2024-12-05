@@ -5,11 +5,9 @@ import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-// import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
-// import { Separator } from "@/components/ui/separator"
 import { Clock, Play, Pause, LogOut, RefreshCw, Send } from 'lucide-react'
 
 // Lazy load less critical components
@@ -77,7 +75,26 @@ export default function MyInbox() {
   const fetchNextTicketHandler = useCallback(async () => {
     try {
       console.log("Fetching the next ticket...")
-      // Add the logic to fetch the next ticket here
+      const response = await fetch('/api/ticketDistribution', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loggedInUsername }),
+      })
+
+      if (!response.ok) throw new Error('Failed to fetch next ticket')
+
+      const userTickets = await response.json()
+      if (userTickets.length > 0) {
+        const nextTicket = userTickets[0]
+        setCurrentTicket(nextTicket)
+        sessionStorage.setItem('currentTicket', JSON.stringify(nextTicket))
+        setDetailCase(nextTicket["Detail Case"] || '')
+        setAnalisa(nextTicket.Analisa || '')
+        setEscalationLevel(nextTicket["Escalation Level"] || nextTicket.level || '')
+        setAvailableLevels(getAvailableLevels(nextTicket))
+      } else {
+        handleNoTicketsAvailable()
+      }
     } catch (error) {
       console.error("Error fetching the next ticket:", error)
       toast({
@@ -86,7 +103,7 @@ export default function MyInbox() {
         variant: "destructive",
       })
     }
-  }, [toast])
+  }, [loggedInUsername, toast])
 
   useEffect(() => {
     const fetchTicketAndProgress = async () => {
@@ -98,6 +115,9 @@ export default function MyInbox() {
       if (storedTicket) {
         const parsedTicket = JSON.parse(storedTicket)
         setCurrentTicket(parsedTicket)
+        setDetailCase(parsedTicket["Detail Case"] || '')
+        setAnalisa(parsedTicket.Analisa || '')
+        setEscalationLevel(parsedTicket["Escalation Level"] || parsedTicket.level || '')
         setAvailableLevels(getAvailableLevels(parsedTicket))
       } else if (loggedInUsername) {
         fetchNextTicketHandler()
@@ -239,15 +259,20 @@ export default function MyInbox() {
 
       const userTickets = await response.json()
       if (userTickets.length > 0) {
-        setCurrentTicket(userTickets[0])
-        sessionStorage.setItem('currentTicket', JSON.stringify(userTickets[0]))
+        const nextTicket = userTickets[0]
+        setCurrentTicket(nextTicket)
+        sessionStorage.setItem('currentTicket', JSON.stringify(nextTicket))
+        setDetailCase(nextTicket["Detail Case"] || '')
+        setAnalisa(nextTicket.Analisa || '')
+        setEscalationLevel(nextTicket["Escalation Level"] || nextTicket.level || '')
+        setAvailableLevels(getAvailableLevels(nextTicket))
       } else {
         handleNoTicketsAvailable()
       }
     } catch (error) {
       console.error('Error during ticket distribution:', error)
     }
-  }, [loggedInUsername, handleNoTicketsAvailable])
+  }, [loggedInUsername, handleNoTicketsAvailable, getAvailableLevels])
 
   const handleAuxToggle = useCallback(() => {
     if (isPaused) {
@@ -390,7 +415,8 @@ export default function MyInbox() {
             <AlertDescription>
               Tickets need to be updated! Please inform the administrator.
               <Button className="ml-4" onClick={() => setShowUpdateAlert(false)}>Dismiss</Button>
-            </AlertDescription></Alert>
+            </AlertDescription>
+          </Alert>
         )}
 
         <Card className="bg-white shadow-lg">
@@ -473,3 +499,4 @@ export default function MyInbox() {
     </main>
   )
 }
+
