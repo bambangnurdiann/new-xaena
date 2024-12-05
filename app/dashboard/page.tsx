@@ -106,29 +106,26 @@ export default function Dashboard() {
  //   }
  // }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="space-y-4">
-          <Skeleton className="h-12 w-48" />
-          <Skeleton className="h-4 w-36" />
-        </div>
-      </div>
-    );
-  }
+//  if (loading) {
+ //   return (
+  //    <div className="flex items-center justify-center min-h-screen">
+  //      <div className="space-y-4">
+  //        <Skeleton className="h-12 w-48" />
+  //        <Skeleton className="h-4 w-36" />
+   //     </div>
+  //    </div>
+  //  );
+ // }
 
-  if (!isAuthenticated) {
-    return null;
-  }
+//  if (!isAuthenticated) {
+//    return null;
+//  }
 
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-900">Ticket Monitoring Dashboard</h1>
-      //    <Button variant="outline" onClick={handleLogout}>
-       //     <LogOut className="mr-2 h-4 w-4" /> Logout
-     //     </Button>
         </div>
       </header>
 
