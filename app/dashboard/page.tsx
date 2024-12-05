@@ -88,23 +88,23 @@ export default function Dashboard() {
     }
   }, [isAuthenticated, fetchTicketStats]);
 
-  const handleLogout = async () => {
-    try {
-      const response = await fetch('/api/auth/logout', { method: 'POST' })
-      if (response.ok) {
-        router.push('/')
-      } else {
-        throw new Error('Failed to log out');
-      }
-    } catch (error) {
-      console.error('Error during logout:', error)
-      toast({
-        title: "Error",
-        description: "Failed to log out. Please try again.",
-        variant: "destructive",
-      });
-    }
-  }
+ // const handleLogout = async () => {
+ //   try {
+  //    const response = await fetch('/api/auth/logout', { method: 'POST' })
+  //    if (response.ok) {
+    //    router.push('/')
+   //   } else {
+   //     throw new Error('Failed to log out');
+  //    }
+  //  } catch (error) {
+  //    console.error('Error during logout:', error)
+  //    toast({
+   //     title: "Error",
+   //     description: "Failed to log out. Please try again.",
+  //      variant: "destructive",
+   //   });
+ //   }
+ // }
 
   if (loading) {
     return (
@@ -126,9 +126,9 @@ export default function Dashboard() {
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-900">Ticket Monitoring Dashboard</h1>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" /> Logout
-          </Button>
+      //    <Button variant="outline" onClick={handleLogout}>
+       //     <LogOut className="mr-2 h-4 w-4" /> Logout
+     //     </Button>
         </div>
       </header>
 
