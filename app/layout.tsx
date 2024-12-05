@@ -2,18 +2,23 @@
 
 import './globals.css'
 import { useState, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
-import { Home, LayoutDashboard, Ticket, Users, Menu } from 'lucide-react'
+import { useRouter, usePathname } from 'next/navigation'
+import { Home, LayoutDashboard, Ticket, Users, LogOut, Lock, Shield, User, Menu } from 'lucide-react'
 import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
-import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { SpeedInsights } from "@vercel/speed-insights/next"
-import { NavItem } from '@/components/NavItem'
-import { ProfileMenu } from '@/components/ProfileMenu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -60,25 +65,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html lang="en" suppressHydrationWarning>
         <body className="bg-background text-foreground">
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <TooltipProvider>
-              <main className="flex-1 p-6 bg-background overflow-auto">
-                {children}
-              </main>
-            </TooltipProvider>
-            <Toaster />
-            <SpeedInsights />
+            <main className="flex-1 p-6 bg-background overflow-auto">
+              {children}
+            </main>
           </ThemeProvider>
         </body>
       </html>
-    )
-  }
+    );
+  }  
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <TooltipProvider>
-            <div className="flex min-h-screen">
+          <div className="flex min-h-screen">
+            <TooltipProvider>
               <aside
                 className={cn(
                   "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300",
@@ -107,22 +108,119 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <ProfileMenu userId={currentUser} />
                 </div>
               </aside>
+            </TooltipProvider>
 
-              <main className="flex-1 p-6 bg-background overflow-auto">
-                <div className="max-w-7xl mx-auto">
-                  <div className="flex justify-end mb-4">
-                    <ThemeToggle />
-                  </div>
-                  {children}
+            <main className="flex-1 p-6 bg-background overflow-auto">
+              <div className="max-w-7xl mx-auto">
+                <div className="flex justify-end mb-4">
+                  <ThemeToggle />
                 </div>
-              </main>
-            </div>
-          </TooltipProvider>
-          <Toaster />
-          <SpeedInsights />
+                {children}
+              </div>
+            </main>
+          </div>
         </ThemeProvider>
       </body>
     </html>
+  )
+}
+
+function NavItem({ href, icon: Icon, label, isOpen }: { href: string; icon: React.ElementType; label: string; isOpen: boolean }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="ghost" className="w-full justify-start" asChild>
+          <a href={href} className="flex items-center py-2 px-3 rounded-lg">
+            <Icon className="w-5 h-5" />
+            {isOpen && <span className="ml-3">{label}</span>}
+          </a>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="right" className={isOpen ? 'hidden' : ''}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function ProfileMenu({ userId }: { userId: string }) {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+        // Reset user state and redirect to login
+        localStorage.removeItem('currentUser');
+        router.push('/login');
+        window.location.reload(); // Reload to reset the app's state
+      } else {
+        console.error('Logout failed');
+      }
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="w-full justify-start p-0">
+          <div className="flex items-center space-x-3">
+            <Avatar className="w-10 h-10">
+              <AvatarImage src="/profile.png" alt="Profile" />
+              <AvatarFallback>{userId.slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="text-left">
+              <p className="font-medium">User ID: {userId}</p>
+              <p className="text-xs text-muted-foreground">View profile</p>
+            </div>
+          </div>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">User ID: {userId}</p>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem>
+          <User className="mr-2 h-4 w-4" />
+          <span>Profile</span>
+          <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Lock className="mr-2 h-4 w-4" />
+          <span>Change Password</span>
+          <DropdownMenuShortcut>⌘B</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Shield className="mr-2 h-4 w-4" />
+          <span>Activate 2FA</span>
+          <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Log out</span>
+          <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
+  return (
+    <span
+      className={cn("ml-auto text-xs tracking-widest text-muted-foreground", className)}
+      {...props}
+    />
   )
 }
 
