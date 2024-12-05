@@ -19,6 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -156,8 +157,9 @@ function ProfileMenu({ userId }: { userId: string }) {
       if (response.ok) {
         // Clear the local storage and session
         localStorage.removeItem('currentUser');
+        sessionStorage.clear(); // Clear all session storage
+        document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"; // Clear session cookie
         router.push('/login'); // Redirect to login page
-        window.location.reload(); // Force page reload to clean up the state
       } else {
         console.error('Logout failed');
       }
