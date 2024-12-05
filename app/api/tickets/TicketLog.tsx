@@ -6,6 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from 'lucide-react';
+import { format } from "date-fns";
 
 interface Ticket {
   Incident: string;
@@ -20,53 +25,54 @@ interface Ticket {
 
 export default function TicketLog() {
   const [logEntries, setLogEntries] = useState<Ticket[]>([]);
+  const [filteredEntries, setFilteredEntries] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const { toast } = useToast();
 
-// Fetch log entries function wrapped in `useCallback`
-const fetchLogEntries = useCallback(async () => {
-  setIsLoading(true);
-  setError(null);
-  try {
-    const response = await fetch('/api/tickets');
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ticket logs: ${response.status} ${response.statusText}`);
-    }
-    const data = await response.json();
+  const fetchLogEntries = useCallback(async (date: Date) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/tickets');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ticket logs: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
 
-    const today = new Date();
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0)).getTime();
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999)).getTime();
+      const startOfDay = new Date(date.setHours(0, 0, 0, 0)).getTime();
+      const endOfDay = new Date(date.setHours(23, 59, 59, 999)).getTime();
 
-    const filteredLogs: Ticket[] = data
-      .filter((ticket: Ticket) => {
-        const ticketTime = new Date(ticket.lastUpdated || '').getTime();
-        return (
-          ticket.status === 'Completed' &&
-          ticketTime >= startOfDay &&
-          ticketTime <= endOfDay
-        );
-      })
-      .map((ticket: Ticket) => ({
-        ...ticket,
-        username: ticket.assignedTo || "N/A",
-        timestamp: ticket.lastUpdated || "Unknown",
-        action: ticket.status || "N/A",
-        details: {
-          'Detail Case': ticket['Detail Case'] || "N/A",
-          Analisa: ticket.Analisa || "N/A",
-          'Escalation Level': ticket['Escalation Level'] || "N/A",
-          status: ticket.status || "N/A",
-        },
-      }));
+      const filteredLogs: Ticket[] = data
+        .filter((ticket: Ticket) => {
+          const ticketTime = new Date(ticket.lastUpdated || '').getTime();
+          return (
+            ticket.status === 'Completed' &&
+            ticketTime >= startOfDay &&
+            ticketTime <= endOfDay
+          );
+        })
+        .map((ticket: Ticket) => ({
+          ...ticket,
+          username: ticket.assignedTo || "N/A",
+          timestamp: ticket.lastUpdated || "Unknown",
+          action: ticket.status || "N/A",
+          details: {
+            'Detail Case': ticket['Detail Case'] || "N/A",
+            Analisa: ticket.Analisa || "N/A",
+            'Escalation Level': ticket['Escalation Level'] || "N/A",
+            status: ticket.status || "N/A",
+          },
+        }));
 
       setLogEntries(filteredLogs);
+      setFilteredEntries(filteredLogs);
     } catch (err: unknown) {
-      // Use a type guard to narrow the error
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
       console.error('Error fetching ticket logs:', errorMessage);
       setError(errorMessage);
@@ -78,13 +84,25 @@ const fetchLogEntries = useCallback(async () => {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]); // Include dependencies here
+  }, [toast]);
 
   useEffect(() => {
-    fetchLogEntries();
-  }, [fetchLogEntries]);
+    if (selectedDate) {
+      fetchLogEntries(selectedDate);
+    }
+  }, [fetchLogEntries, selectedDate]);
 
-  const sortedEntries = [...logEntries].sort((a, b) => {
+  useEffect(() => {
+    const filtered = logEntries.filter(entry =>
+      entry.Incident.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entry.assignedTo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entry.status?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredEntries(filtered);
+    setCurrentPage(1);
+  }, [searchTerm, logEntries]);
+
+  const sortedEntries = [...filteredEntries].sort((a, b) => {
     const dateA = new Date(a.lastUpdated || '').getTime();
     const dateB = new Date(b.lastUpdated || '').getTime();
     return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
@@ -105,6 +123,10 @@ const fetchLogEntries = useCallback(async () => {
     setCurrentPage(1);
   };
 
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+  };
+
   if (isLoading) {
     return <div>Loading ticket logs...</div>;
   }
@@ -120,19 +142,45 @@ const fetchLogEntries = useCallback(async () => {
       </CardHeader>
       <CardContent>
         <div className="flex justify-between mb-4">
-          <Button onClick={handleSortChange}>
-            Sort by {sortOrder === 'newest' ? 'Oldest' : 'Newest'}
-          </Button>
-          <Select onValueChange={handleRowsPerPageChange} value={rowsPerPage.toString()}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Rows per page" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 rows</SelectItem>
-              <SelectItem value="50">50 rows</SelectItem>
-              <SelectItem value="100">100 rows</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center space-x-2">
+            <Input
+              placeholder="Search tickets..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-64"
+            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={handleDateSelect}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button onClick={handleSortChange}>
+              Sort by {sortOrder === 'newest' ? 'Oldest' : 'Newest'}
+            </Button>
+            <Select onValueChange={handleRowsPerPageChange} value={rowsPerPage.toString()}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Rows per page" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10 rows</SelectItem>
+                <SelectItem value="50">50 rows</SelectItem>
+                <SelectItem value="100">100 rows</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         {paginatedEntries.length === 0 ? (
           <div>No ticket logs available.</div>
