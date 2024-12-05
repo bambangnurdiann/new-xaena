@@ -31,7 +31,7 @@ export default function UploadTickets() {
 
   const fetchAuthentication = useCallback(async () => {
     try {
-      const response = await fetch('/api/checkLoggedInUser')
+      const response = await fetch('/api/checkLoggedInUsers')
       if (response.ok) {
         const data = await response.json()
         if (data.userId) {
