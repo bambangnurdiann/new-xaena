@@ -72,6 +72,13 @@ export default function UploadTickets() {
     fetchLoggedInUsers()
   }, [fetchExistingTickets, fetchLoggedInUsers])
 
+  useEffect(() => {
+    const storedLastUploadTime = localStorage.getItem('lastUploadTime')
+    if (storedLastUploadTime) {
+      setLastUploadTime(new Date(storedLastUploadTime))
+    }
+  }, [])
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
@@ -92,6 +99,7 @@ export default function UploadTickets() {
             const categorizedTickets = await fetchFilterCategories(tickets)
             setCsvData(categorizedTickets)
             setLastUploadTime(new Date())
+            localStorage.setItem('lastUploadTime', new Date().toISOString())
             toast({
               title: "CSV Uploaded",
               description: `${categorizedTickets.length} tickets have been uploaded and categorized.`,
@@ -371,20 +379,20 @@ export default function UploadTickets() {
           </ul>
         </div>
 
-        {lastUploadTime && (
-          <div className="mt-4">
-            <h3 className="font-semibold mb-2">Last Uploaded Data:</h3>
-            <p className="text-sm text-gray-600">
-              {lastUploadTime.toLocaleString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })}
-            </p>
-          </div>
-        )}
+        <div className="mt-4">
+          <h3 className="font-semibold mb-2">Last Uploaded Data:</h3>
+          <p className="text-sm text-gray-600">
+            {lastUploadTime
+              ? lastUploadTime.toLocaleString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })
+              : 'No data has been uploaded yet.'}
+          </p>
+        </div>
       </CardContent>
     </Card>
   )
