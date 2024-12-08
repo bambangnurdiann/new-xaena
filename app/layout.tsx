@@ -146,31 +146,50 @@ function NavItem({ href, icon: Icon, label, isOpen }: { href: string; icon: Reac
 
 function ProfileMenu({ userId }: { userId: string }) {
   const router = useRouter();
+  const { toast } = useToast();
 
-const handleLogout = async () => {
-  try {
-    const response = await fetch('/api/logout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    if (response.ok) {
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('lastLoginTime');
-      
-      // Use router.push with a callback to ensure navigation happens after state update
-      router.push('/login').then(() => {
-        // Force a hard reload after navigation
-        window.location.reload();
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       });
-    } else {
-      console.error('Logout failed');
-    }
-  } catch (error) {
-    console.error('Error during logout:', error);
-  }
-};
 
+      if (response.ok) {
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('lastLoginTime');
+        
+        // Navigate to login page
+        router.push('/login');
+        
+        // Show a toast notification
+        toast({
+          title: "Logged out successfully",
+          description: "You have been logged out of your account.",
+          duration: 3000,
+        });
+
+        // Force a hard reload after a short delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
+      } else {
+        console.error('Logout failed');
+        toast({
+          title: "Logout failed",
+          description: "There was an error logging out. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error during logout:', error);
+      toast({
+        title: "Logout error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <DropdownMenu>
@@ -216,8 +235,6 @@ const handleLogout = async () => {
     </DropdownMenu>
   );
 }
-
-
 
 function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
   return (
