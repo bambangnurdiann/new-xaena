@@ -17,7 +17,6 @@ export async function POST() {
     const db = client.db("xaena_db")
     const usersCollection = db.collection('login_user')
 
-    // Update the user document to log them out
     const result = await usersCollection.updateOne(
       { sessionToken },
       { 
@@ -26,20 +25,23 @@ export async function POST() {
       }
     )
 
-    if (result.modifiedCount === 1) {
-      // Properly delete the session token cookie
-      cookieStore.set('session_token', '', {
-        maxAge: 0, 
-        path: '/',  
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict', // Added to ensure proper session handling
-      })
+    // Create the response
+    const response = NextResponse.json({ 
+      message: result.modifiedCount === 1 ? 'Logged out successfully' : 'User not found'
+    }, { 
+      status: result.modifiedCount === 1 ? 200 : 404 
+    })
 
-      return NextResponse.json({ message: 'Logged out successfully' }, { status: 200 })
-    } else {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
+    // Clear the session token cookie
+    response.cookies.set('session_token', '', {
+      maxAge: 0, // This makes the cookie expire immediately
+      path: '/',  // Ensure the cookie is deleted across the site
+      httpOnly: true, // Ensures the cookie cannot be accessed by JavaScript
+      secure: true,   // Only sent over HTTPS
+      sameSite: 'strict' // Adds additional security
+    })
+
+    return response
   } catch (error) {
     console.error('Error during logout:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
