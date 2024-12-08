@@ -39,27 +39,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         } else {
           setCurrentUser(null)
           localStorage.removeItem('currentUser')
+          window.location.href = '/login';
         }
       }
     } catch (error) {
       console.error('Error fetching current user:', error)
       setCurrentUser(null)
       localStorage.removeItem('currentUser')
+      window.location.href = '/login';
     }
   }
 
   useEffect(() => {
-    const checkCurrentUser = () => {
-      const storedUser = localStorage.getItem('currentUser')
-      if (storedUser) {
-        setCurrentUser(JSON.parse(storedUser))
-      } else {
-        fetchCurrentUser()
-      }
-    }
-
-    checkCurrentUser()
-  }, [pathname])
+    fetchCurrentUser();
+  }, [pathname]);
 
   if (!currentUser) {
     return (
@@ -155,14 +148,19 @@ const handleLogout = async () => {
     });
 
     if (response.ok) {
-      // Clear localStorage, sessionStorage, and cookies
+      // Clear localStorage and sessionStorage
       localStorage.removeItem('currentUser');
       sessionStorage.clear();
-      document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
-      // Redirect to login and refresh the page
-      router.push('/login');
-      setTimeout(() => window.location.reload(), 100); // Force a reload for a clean state
+      // Clear cookies
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+
+      // Force a hard refresh to the login page
+      window.location.href = '/login';
     } else {
       console.error('Logout failed');
     }
@@ -227,4 +225,55 @@ function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTML
     />
   )
 }
+```[v0-no-op-code-block-prefix][v0-additional-meta]isAttachmentQuickEdit[/v0-additional-meta]
 
+Now, let's update the server-side logout route to ensure it properly clears the session:
+
+```ts file="route.ts" type="code" project="route"
+export const dynamic = 'force-dynamic'; // Ensure dynamic route processing
+
+
+import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import clientPromise from '@/lib/mongodb'
+
+export async function POST() {
+  const cookieStore = cookies()
+  const sessionToken = cookieStore.get('session_token')?.value
+
+  if (!sessionToken) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  try {
+    const client = await clientPromise
+    const db = client.db("xaena_db")
+    const usersCollection = db.collection('login_user')
+
+    const result = await usersCollection.updateOne(
+      { sessionToken },
+      { 
+        $set: { loggedIn: false, lastLogoutTime: new Date() },
+        $unset: { sessionToken: "" }
+      }
+    )
+
+    if (result.modifiedCount === 1) {
+      // Clear the session token cookie
+      const response = NextResponse.json({ message: 'Logged out successfully' })
+      response.cookies.set('session_token', '', {
+        maxAge: 0,
+        path: '/',
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict'
+      })
+      return response
+    } else {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+  } catch (error) {
+    console.error('Error during logout:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
