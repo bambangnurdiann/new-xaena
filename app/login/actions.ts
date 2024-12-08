@@ -23,7 +23,7 @@ export async function login(formData: FormData) {
 
       // Generate a unique session token
       const sessionToken = uuidv4()
-      const lastLoginTime = new Date().toISOString()
+      const lastLoginTime = new Date()
 
       // Update the user's session token and login status in the database
       await usersCollection.updateOne(
@@ -49,10 +49,10 @@ export async function login(formData: FormData) {
       cookies().set('user', username, cookieOptions)
       cookies().set('session_token', sessionToken, cookieOptions)
       cookies().set('auth', 'true', cookieOptions)
-      cookies().set('last_login', lastLoginTime, cookieOptions)
+      cookies().set('last_login', lastLoginTime.toISOString(), cookieOptions)
 
       console.log("Cookies set for user:", username) // Debugging
-      return { success: true, sessionToken, userId: user._id.toString(), lastLoginTime }
+      return { success: true, sessionToken, userId: user._id.toString(), lastLoginTime: lastLoginTime.toISOString() }
     } else {
       console.log("Password does not match") // Debugging
     }
@@ -109,7 +109,8 @@ export async function logoutUser(username: string): Promise<boolean> {
     { 
       $set: { 
         loggedIn: false,
-        sessionToken: null
+        sessionToken: null,
+        lastLoginTime: null
       }
     }
   )
