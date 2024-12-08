@@ -24,14 +24,11 @@ import { useToast } from "@/components/ui/use-toast"
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [currentUser, setCurrentUser] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const pathname = usePathname()
-  const router = useRouter()
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
 
   const fetchCurrentUser = async () => {
-    setIsLoading(true)
     try {
       const response = await fetch('/api/checkLoggedInUsers')
       if (response.ok) {
@@ -42,83 +39,77 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         } else {
           setCurrentUser(null)
           localStorage.removeItem('currentUser')
-          if (pathname !== '/login') {
-            router.push('/login')
-          }
         }
       }
     } catch (error) {
       console.error('Error fetching current user:', error)
       setCurrentUser(null)
       localStorage.removeItem('currentUser')
-      if (pathname !== '/login') {
-        router.push('/login')
-      }
-    } finally {
-      setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchCurrentUser()
+    const checkCurrentUser = () => {
+      const storedUser = localStorage.getItem('currentUser')
+      if (storedUser) {
+        setCurrentUser(JSON.parse(storedUser))
+      } else {
+        fetchCurrentUser()
+      }
+    }
+
+    checkCurrentUser()
   }, [pathname])
 
-  if (isLoading) {
+  if (!currentUser) {
     return (
       <html lang="en" suppressHydrationWarning>
         <body className="bg-background text-foreground">
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <main className="flex-1 p-6 bg-background overflow-auto">
-              <div>Loading...</div>
+              {children}
             </main>
           </ThemeProvider>
         </body>
       </html>
-    )
-  }
-
-  if (!currentUser && pathname !== '/login') {
-    router.push('/login')
-    return null
-  }
+    );
+  }  
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <div className="flex min-h-screen">
-            {currentUser && (
-              <TooltipProvider>
-                <aside
-                  className={cn(
-                    "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300",
-                    isSidebarOpen ? "w-64" : "w-20"
-                  )}
-                >
-                  <ScrollArea className="flex-1">
-                    <div className="p-4 flex items-center justify-between">
-                      {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
-                      <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-                        <Menu className="h-6 w-6" />
-                      </Button>
-                    </div>
-                    <nav className="space-y-2 p-4">
-                      <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
-                      <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
-                      <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
-                      {currentUser === '96312' && (
-                        <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
-                      )}
-                      <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
-                    </nav>
-                  </ScrollArea>
-
-                  <div className="p-4">
-                    <ProfileMenu userId={currentUser} />
+            <TooltipProvider>
+              <aside
+                className={cn(
+                  "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300",
+                  isSidebarOpen ? "w-64" : "w-20"
+                )}
+              >
+                <ScrollArea className="flex-1">
+                  <div className="p-4 flex items-center justify-between">
+                    {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
+                    <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+                      <Menu className="h-6 w-6" />
+                    </Button>
                   </div>
-                </aside>
-              </TooltipProvider>
-            )}
+                  <nav className="space-y-2 p-4">
+                    <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
+                    <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
+                    <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
+                    {currentUser === '96312' && (
+                      <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
+                    )}
+                    <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
+                  </nav>
+                </ScrollArea>
+
+                <div className="p-4">
+                  <ProfileMenu userId={currentUser} />
+                </div>
+              </aside>
+            </TooltipProvider>
 
             <main className="flex-1 p-6 bg-background overflow-auto">
               <div className="max-w-7xl mx-auto">
@@ -155,51 +146,31 @@ function NavItem({ href, icon: Icon, label, isOpen }: { href: string; icon: Reac
 
 function ProfileMenu({ userId }: { userId: string }) {
   const router = useRouter();
-  const { toast } = useToast()
 
-  const handleLogout = async () => {
-    try {
-      const response = await fetch('/api/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
+const handleLogout = async () => {
+  try {
+    const response = await fetch('/api/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
 
-      if (response.ok) {
-        // Clear localStorage and sessionStorage
-        localStorage.removeItem('currentUser');
-        sessionStorage.clear();
+    if (response.ok) {
+      // Clear localStorage, sessionStorage, and cookies
+      localStorage.removeItem('currentUser');
+      sessionStorage.clear();
+      document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
-        // Clear cookies
-        document.cookie.split(";").forEach((c) => {
-          document.cookie = c
-            .replace(/^ +/, "")
-            .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-        });
-
-        toast({
-          title: "Logged out successfully",
-          description: "You have been logged out of your account.",
-        })
-
-        // Redirect to login page
-        router.push('/login');
-      } else {
-        console.error('Logout failed');
-        toast({
-          title: "Logout failed",
-          description: "There was an error logging out. Please try again.",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error('Error during logout:', error);
-      toast({
-        title: "Logout error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      })
+      // Redirect to login and refresh the page
+      router.push('/login');
+      setTimeout(() => window.location.reload(), 100); // Force a reload for a clean state
+    } else {
+      console.error('Logout failed');
     }
-  };
+  } catch (error) {
+    console.error('Error during logout:', error);
+  }
+};
+
 
   return (
     <DropdownMenu>
@@ -246,6 +217,8 @@ function ProfileMenu({ userId }: { userId: string }) {
   );
 }
 
+
+
 function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
   return (
     <span
@@ -254,3 +227,4 @@ function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTML
     />
   )
 }
+
