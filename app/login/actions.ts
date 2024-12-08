@@ -4,7 +4,11 @@ import { cookies } from 'next/headers'
 import clientPromise, { User } from '@/lib/mongodb'
 import { v4 as uuidv4 } from 'uuid'
 
-export async function login(formData: FormData) {
+type LoginResult = 
+  | { success: true; sessionToken: string; userId: string; lastLoginTime: string }
+  | { success: false; error: string };
+
+export async function login(formData: FormData): Promise<LoginResult> {
   const username = formData.get('username') as string
   const password = formData.get('password') as string
 
@@ -49,7 +53,12 @@ export async function login(formData: FormData) {
       cookies().set('last_login', lastLoginTime.toISOString(), cookieOptions)
 
       console.log("Cookies set for user:", username)
-      return { success: true, sessionToken, userId: user._id?.toString(), lastLoginTime: lastLoginTime.toISOString() }
+      return { 
+        success: true, 
+        sessionToken, 
+        userId: user._id?.toString() ?? '', 
+        lastLoginTime: lastLoginTime.toISOString() 
+      }
     } else {
       console.log("Password does not match")
     }
