@@ -66,7 +66,9 @@ export default function LoginPage() {
 
       if (result.success) {
         localStorage.setItem('currentUser', JSON.stringify(result.userId))
-        localStorage.setItem('lastLoginTime', result.lastLoginTime)
+        if (result.lastLoginTime) {
+          localStorage.setItem('lastLoginTime', result.lastLoginTime)
+        }
 
         toast({
           title: "Login Successful",
