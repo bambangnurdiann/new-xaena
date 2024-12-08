@@ -49,7 +49,7 @@ export async function login(formData: FormData) {
       cookies().set('last_login', lastLoginTime.toISOString(), cookieOptions)
 
       console.log("Cookies set for user:", username)
-      return { success: true, sessionToken, userId: user._id.toString(), lastLoginTime: lastLoginTime.toISOString() }
+      return { success: true, sessionToken, userId: user._id?.toString(), lastLoginTime: lastLoginTime.toISOString() }
     } else {
       console.log("Password does not match")
     }
