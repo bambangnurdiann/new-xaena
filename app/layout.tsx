@@ -155,14 +155,14 @@ const handleLogout = async () => {
     });
 
     if (response.ok) {
-      // Clear localStorage, sessionStorage, and cookies
       localStorage.removeItem('currentUser');
-      sessionStorage.clear();
-      document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-
-      // Redirect to login and refresh the page
-      router.push('/login');
-      setTimeout(() => window.location.reload(), 100); // Force a reload for a clean state
+      localStorage.removeItem('lastLoginTime');
+      
+      // Use router.push with a callback to ensure navigation happens after state update
+      router.push('/login', undefined, { shallow: false }).then(() => {
+        // Force a hard reload after navigation
+        window.location.reload();
+      });
     } else {
       console.error('Logout failed');
     }
