@@ -8,7 +8,7 @@ type LoginResult =
   | { success: true; sessionToken: string; userId: string; lastLoginTime: string }
   | { success: false; error: string };
 
-export async function login(formData: FormData): Promise<{ success: boolean; sessionToken?: string; userId?: string; error?: string }> {
+export async function login(formData: FormData): Promise<{ success: boolean; sessionToken?: string; userId?: string; lastLoginTime?: string; error?: string }> {
   const username = formData.get('username') as string
   const password = formData.get('password') as string
 
