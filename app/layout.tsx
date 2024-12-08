@@ -159,7 +159,7 @@ const handleLogout = async () => {
       localStorage.removeItem('lastLoginTime');
       
       // Use router.push with a callback to ensure navigation happens after state update
-      router.push('/login', undefined, { shallow: false }).then(() => {
+      router.push('/login').then(() => {
         // Force a hard reload after navigation
         window.location.reload();
       });
