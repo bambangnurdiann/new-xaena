@@ -20,11 +20,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/components/ui/use-toast"
-import LogoutButton from '@/components/LogoutButton'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const pathname = usePathname()
@@ -32,13 +30,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const { toast } = useToast()
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
-  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen)
 
   const fetchCurrentUser = async () => {
     setIsLoading(true)
     try {
       const response = await fetch('/api/auth/check', {
-        method: 'GET',
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
@@ -46,15 +42,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       })
       if (response.ok) {
         const data = await response.json()
+        console.log('User data:', data) // Debug log
         if (data.isAuthenticated) {
           setCurrentUser(data.userId)
           localStorage.setItem('currentUser', JSON.stringify(data.userId))
         } else {
           setCurrentUser(null)
           localStorage.removeItem('currentUser')
-          if (pathname !== '/login') {
-            router.push('/login')
-          }
+          router.push('/login')
         }
       } else {
         throw new Error('Failed to fetch current user')
@@ -63,17 +58,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       console.error('Error fetching current user:', error)
       setCurrentUser(null)
       localStorage.removeItem('currentUser')
-      if (pathname !== '/login') {
-        router.push('/login')
-      }
+      router.push('/login')
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchCurrentUser()
+    const checkCurrentUser = () => {
+      const storedUser = localStorage.getItem('currentUser')
+      if (storedUser) {
+        setCurrentUser(JSON.parse(storedUser))
+        setIsLoading(false)
+      } else {
+        fetchCurrentUser()
+      }
+    }
+
+    checkCurrentUser()
   }, [pathname])
+
+  useEffect(() => {
+    console.log('Current user:', currentUser) // Debug log
+    console.log('Is loading:', isLoading) // Debug log
+  }, [currentUser, isLoading])
 
   if (isLoading) {
     return (
@@ -95,74 +103,51 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <div className="flex min-h-screen">
             {currentUser && (
-              <>
-                <TooltipProvider>
-                  <aside
-                    className={cn(
-                      "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300",
-                      isSidebarOpen ? "w-64" : "w-20",
-                      "fixed inset-y-0 left-0 z-30 transform md:relative md:translate-x-0",
-                      isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-                    )}
-                  >
-                    <ScrollArea className="flex-1">
-                      <div className="p-4 flex items-center justify-between">
-                        {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
-                        <Button variant="ghost" size="icon" onClick={toggleSidebar} className="hidden md:flex">
-                          <Menu className="h-6 w-6" />
-                        </Button>
-                      </div>
-                      <nav className="space-y-2 p-4">
-                        <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
-                        <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
-                        <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
-                        {currentUser === '96312' && (
-                          <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
-                        )}
-                        <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
-                      </nav>
-                    </ScrollArea>
-
-                    <div className="p-4">
-                      <ProfileMenu userId={currentUser} />
+              <TooltipProvider>
+                <aside
+                  className={cn(
+                    "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300",
+                    isSidebarOpen ? "w-64" : "w-20"
+                  )}
+                >
+                  <ScrollArea className="flex-1">
+                    <div className="p-4 flex items-center justify-between">
+                      {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
+                      <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+                        <Menu className="h-6 w-6" />
+                      </Button>
                     </div>
-                  </aside>
-                </TooltipProvider>
+                    <nav className="space-y-2 p-4">
+                      <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
+                      <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
+                      <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
+                      {currentUser === '96312' && (
+                        <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
+                      )}
+                      <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
+                    </nav>
+                  </ScrollArea>
 
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <header className="bg-background shadow-sm z-10">
-                    <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-                      <div className="flex justify-between items-center">
-                        <Button variant="ghost" size="icon" onClick={toggleMobileMenu} className="md:hidden">
-                          <Menu className="h-6 w-6" />
-                        </Button>
-                        <div className="flex items-center">
-                          <ThemeToggle />
-                          <LogoutButton />
-                        </div>
-                      </div>
-                    </div>
-                  </header>
-
-                  <main className="flex-1 overflow-x-hidden overflow-y-auto bg-background">
-                    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                      {children}
-                    </div>
-                  </main>
-                </div>
-              </>
-            )}
-
-            {!currentUser && (
-              <main className="flex-1 p-6 bg-background overflow-auto">
-                <div className="max-w-7xl mx-auto">
-                  <div className="flex justify-end mb-4">
-                    <ThemeToggle />
+                  <div className="p-4">
+                    <ProfileMenu userId={currentUser} />
                   </div>
-                  {children}
-                </div>
-              </main>
+                </aside>
+              </TooltipProvider>
             )}
+
+            <main className="flex-1 p-6 bg-background overflow-auto">
+              <div className="max-w-7xl mx-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <ThemeToggle />
+                  {currentUser && (
+                    <Button variant="outline" onClick={() => console.log('Current user:', currentUser)}>
+                      Debug: Show Current User
+                    </Button>
+                  )}
+                </div>
+                {children}
+              </div>
+            </main>
           </div>
         </ThemeProvider>
       </body>
@@ -189,6 +174,41 @@ function NavItem({ href, icon: Icon, label, isOpen }: { href: string; icon: Reac
 }
 
 function ProfileMenu({ userId }: { userId: string }) {
+  const router = useRouter();
+  const { toast } = useToast()
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+        // Clear localStorage and sessionStorage
+        localStorage.removeItem('currentUser');
+        sessionStorage.clear();
+
+        toast({
+          title: "Logged out successfully",
+          description: "You have been logged out of your account.",
+        })
+
+        // Redirect to login page
+        router.push('/login');
+      } else {
+        throw new Error('Logout failed');
+      }
+    } catch (error) {
+      console.error('Error during logout:', error);
+      toast({
+        title: "Logout error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -225,8 +245,20 @@ function ProfileMenu({ userId }: { userId: string }) {
           <span>Activate 2FA</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <LogoutButton />
+        <DropdownMenuItem onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Log out</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
+  return (
+    <span
+      className={cn("ml-auto text-xs tracking-widest text-muted-foreground", className)}
+      {...props}
+    />
+  )
 }
