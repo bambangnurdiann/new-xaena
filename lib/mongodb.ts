@@ -37,6 +37,7 @@ export interface User {
   username: string;
   password: string;
   loggedIn: boolean;
-  lastLoginTime: Date;
+  sessionToken: string | null;
+  lastLoginTime: Date | null;
 }
 
