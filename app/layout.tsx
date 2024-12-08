@@ -24,6 +24,7 @@ import LogoutButton from '@/components/LogoutButton'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const pathname = usePathname()
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const { toast } = useToast()
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
+  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen)
 
   const fetchCurrentUser = async () => {
     setIsLoading(true)
@@ -93,47 +95,74 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <div className="flex min-h-screen">
             {currentUser && (
-              <TooltipProvider>
-                <aside
-                  className={cn(
-                    "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300",
-                    isSidebarOpen ? "w-64" : "w-20"
-                  )}
-                >
-                  <ScrollArea className="flex-1">
-                    <div className="p-4 flex items-center justify-between">
-                      {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
-                      <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-                        <Menu className="h-6 w-6" />
-                      </Button>
-                    </div>
-                    <nav className="space-y-2 p-4">
-                      <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
-                      <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
-                      <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
-                      {currentUser === '96312' && (
-                        <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
-                      )}
-                      <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
-                    </nav>
-                  </ScrollArea>
+              <>
+                <TooltipProvider>
+                  <aside
+                    className={cn(
+                      "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300",
+                      isSidebarOpen ? "w-64" : "w-20",
+                      "fixed inset-y-0 left-0 z-30 transform md:relative md:translate-x-0",
+                      isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+                    )}
+                  >
+                    <ScrollArea className="flex-1">
+                      <div className="p-4 flex items-center justify-between">
+                        {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
+                        <Button variant="ghost" size="icon" onClick={toggleSidebar} className="hidden md:flex">
+                          <Menu className="h-6 w-6" />
+                        </Button>
+                      </div>
+                      <nav className="space-y-2 p-4">
+                        <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
+                        <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
+                        <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
+                        {currentUser === '96312' && (
+                          <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
+                        )}
+                        <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
+                      </nav>
+                    </ScrollArea>
 
-                  <div className="p-4">
-                    <ProfileMenu userId={currentUser} />
-                  </div>
-                </aside>
-              </TooltipProvider>
+                    <div className="p-4">
+                      <ProfileMenu userId={currentUser} />
+                    </div>
+                  </aside>
+                </TooltipProvider>
+
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <header className="bg-background shadow-sm z-10">
+                    <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+                      <div className="flex justify-between items-center">
+                        <Button variant="ghost" size="icon" onClick={toggleMobileMenu} className="md:hidden">
+                          <Menu className="h-6 w-6" />
+                        </Button>
+                        <div className="flex items-center">
+                          <ThemeToggle />
+                          <LogoutButton />
+                        </div>
+                      </div>
+                    </div>
+                  </header>
+
+                  <main className="flex-1 overflow-x-hidden overflow-y-auto bg-background">
+                    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                      {children}
+                    </div>
+                  </main>
+                </div>
+              </>
             )}
 
-            <main className="flex-1 p-6 bg-background overflow-auto">
-              <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-4">
-                  <ThemeToggle />
-                  {currentUser && <LogoutButton />}
+            {!currentUser && (
+              <main className="flex-1 p-6 bg-background overflow-auto">
+                <div className="max-w-7xl mx-auto">
+                  <div className="flex justify-end mb-4">
+                    <ThemeToggle />
+                  </div>
+                  {children}
                 </div>
-                {children}
-              </div>
-            </main>
+              </main>
+            )}
           </div>
         </ThemeProvider>
       </body>
@@ -200,13 +229,4 @@ function ProfileMenu({ userId }: { userId: string }) {
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
-
-function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
-  return (
-    <span
-      className={cn("ml-auto text-xs tracking-widest text-muted-foreground", className)}
-      {...props}
-    />
-  )
 }
