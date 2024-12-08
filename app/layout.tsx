@@ -24,43 +24,27 @@ import { useToast } from "@/components/ui/use-toast"
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [currentUser, setCurrentUser] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const pathname = usePathname()
-  const router = useRouter()
-  const { toast } = useToast()
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
 
   const fetchCurrentUser = async () => {
-    setIsLoading(true)
     try {
-      const response = await fetch('/api/auth/check', {
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      })
+      const response = await fetch('/api/checkLoggedInUsers')
       if (response.ok) {
         const data = await response.json()
-        console.log('User data:', data) // Debug log
-        if (data.isAuthenticated) {
+        if (data.userId) {
           setCurrentUser(data.userId)
           localStorage.setItem('currentUser', JSON.stringify(data.userId))
         } else {
           setCurrentUser(null)
           localStorage.removeItem('currentUser')
-          router.push('/login')
         }
-      } else {
-        throw new Error('Failed to fetch current user')
       }
     } catch (error) {
       console.error('Error fetching current user:', error)
       setCurrentUser(null)
       localStorage.removeItem('currentUser')
-      router.push('/login')
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -69,7 +53,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       const storedUser = localStorage.getItem('currentUser')
       if (storedUser) {
         setCurrentUser(JSON.parse(storedUser))
-        setIsLoading(false)
       } else {
         fetchCurrentUser()
       }
@@ -78,72 +61,60 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     checkCurrentUser()
   }, [pathname])
 
-  useEffect(() => {
-    console.log('Current user:', currentUser) // Debug log
-    console.log('Is loading:', isLoading) // Debug log
-  }, [currentUser, isLoading])
-
-  if (isLoading) {
+  if (!currentUser) {
     return (
       <html lang="en" suppressHydrationWarning>
         <body className="bg-background text-foreground">
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <main className="flex-1 p-6 bg-background overflow-auto">
-              <div>Loading...</div>
+              {children}
             </main>
           </ThemeProvider>
         </body>
       </html>
-    )
-  }
+    );
+  }  
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <div className="flex min-h-screen">
-            {currentUser && (
-              <TooltipProvider>
-                <aside
-                  className={cn(
-                    "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300",
-                    isSidebarOpen ? "w-64" : "w-20"
-                  )}
-                >
-                  <ScrollArea className="flex-1">
-                    <div className="p-4 flex items-center justify-between">
-                      {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
-                      <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-                        <Menu className="h-6 w-6" />
-                      </Button>
-                    </div>
-                    <nav className="space-y-2 p-4">
-                      <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
-                      <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
-                      <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
-                      {currentUser === '96312' && (
-                        <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
-                      )}
-                      <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
-                    </nav>
-                  </ScrollArea>
-
-                  <div className="p-4">
-                    <ProfileMenu userId={currentUser} />
+            <TooltipProvider>
+              <aside
+                className={cn(
+                  "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300",
+                  isSidebarOpen ? "w-64" : "w-20"
+                )}
+              >
+                <ScrollArea className="flex-1">
+                  <div className="p-4 flex items-center justify-between">
+                    {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
+                    <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+                      <Menu className="h-6 w-6" />
+                    </Button>
                   </div>
-                </aside>
-              </TooltipProvider>
-            )}
+                  <nav className="space-y-2 p-4">
+                    <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
+                    <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
+                    <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
+                    {currentUser === '96312' && (
+                      <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
+                    )}
+                    <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
+                  </nav>
+                </ScrollArea>
+
+                <div className="p-4">
+                  <ProfileMenu userId={currentUser} />
+                </div>
+              </aside>
+            </TooltipProvider>
 
             <main className="flex-1 p-6 bg-background overflow-auto">
               <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-end mb-4">
                   <ThemeToggle />
-                  {currentUser && (
-                    <Button variant="outline" onClick={() => console.log('Current user:', currentUser)}>
-                      Debug: Show Current User
-                    </Button>
-                  )}
                 </div>
                 {children}
               </div>
@@ -175,39 +146,31 @@ function NavItem({ href, icon: Icon, label, isOpen }: { href: string; icon: Reac
 
 function ProfileMenu({ userId }: { userId: string }) {
   const router = useRouter();
-  const { toast } = useToast()
 
-  const handleLogout = async () => {
-    try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
+const handleLogout = async () => {
+  try {
+    const response = await fetch('/api/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
 
-      if (response.ok) {
-        // Clear localStorage and sessionStorage
-        localStorage.removeItem('currentUser');
-        sessionStorage.clear();
+    if (response.ok) {
+      // Clear localStorage, sessionStorage, and cookies
+      localStorage.removeItem('currentUser');
+      sessionStorage.clear();
+      document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
-        toast({
-          title: "Logged out successfully",
-          description: "You have been logged out of your account.",
-        })
-
-        // Redirect to login page
-        router.push('/login');
-      } else {
-        throw new Error('Logout failed');
-      }
-    } catch (error) {
-      console.error('Error during logout:', error);
-      toast({
-        title: "Logout error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      })
+      // Redirect to login and refresh the page
+      router.push('/login');
+      setTimeout(() => window.location.reload(), 100); // Force a reload for a clean state
+    } else {
+      console.error('Logout failed');
     }
-  };
+  } catch (error) {
+    console.error('Error during logout:', error);
+  }
+};
+
 
   return (
     <DropdownMenu>
@@ -254,6 +217,8 @@ function ProfileMenu({ userId }: { userId: string }) {
   );
 }
 
+
+
 function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
   return (
     <span
@@ -262,3 +227,4 @@ function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTML
     />
   )
 }
+
