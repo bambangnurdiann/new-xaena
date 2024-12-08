@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,21 +15,6 @@ export default function LoginPage() {
   const router = useRouter()
   const { toast } = useToast()
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('/api/auth/check')
-        const data = await response.json()
-        if (data.isAuthenticated) {
-          router.push('/dashboard')
-        }
-      } catch (error) {
-        console.error('Error checking auth:', error)
-      }
-    }
-    checkAuth()
-  }, [router])
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsLoading(true)
@@ -39,16 +24,32 @@ export default function LoginPage() {
       const result = await login(formData)
 
       if (result.success) {
-        toast({
-          title: "Login Successful",
-          description: "You have been successfully logged in.",
-          variant: "default",
-        })
-        router.push('/dashboard')
-      } else {
+        const sessionToken = result.sessionToken
+        document.cookie = `session_token=${sessionToken}; path=/;`
+
+        const userResponse = await fetch('/api/checkLoggedInUsers')
+        if (userResponse.ok) {
+          const userData = await userResponse.json()
+          localStorage.setItem('currentUser', JSON.stringify(userData.loggedInUsers[0]))
+
+          toast({
+            title: "Login Successful",
+            description: "You have been successfully logged in.",
+            variant: "default", // Changed from "success" to "default"
+          })
+
+          if (userData.loggedInUsers[0] === '96312') {
+            router.push('/admin/upload-tickets')
+          } else {
+            router.push('/dashboard')
+          }
+        } else {
+          throw new Error('Failed to fetch user data')
+        }
+      } else if (result.error) {
         toast({
           title: "Login Failed",
-          description: result.error || 'Invalid username or password',
+          description: result.error || 'An unknown error occurred',
           variant: "destructive",
         })
       }
