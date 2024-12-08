@@ -3,22 +3,20 @@
 import './globals.css'
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Home, LayoutDashboard, Ticket, Users, LogOut, Menu } from 'lucide-react'
+import { Home, LayoutDashboard, Ticket, Users, LogOut, Menu, FilePlus, List } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true) // For sidebar toggling
-  const [currentUser, setCurrentUser] = useState<string | null>(null) // Tracks logged-in user
-  const pathname = usePathname()
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true) // Sidebar toggle
+  const [currentUser, setCurrentUser] = useState<string | null>(null) // Tracks current user
   const router = useRouter()
 
-  // Toggle sidebar visibility
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
 
-  // Fetch current user from API or localStorage
+  // Fetch current user or redirect to login if not logged in
   const fetchCurrentUser = async () => {
     try {
       const response = await fetch('/api/checkLoggedInUsers')
@@ -26,25 +24,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         const data = await response.json()
         if (data.userId) {
           setCurrentUser(data.userId) // Set user
-          localStorage.setItem('currentUser', JSON.stringify(data.userId)) // Cache in localStorage
+          localStorage.setItem('currentUser', JSON.stringify(data.userId)) // Cache user
         } else {
-          handleLogout() // Clear user if invalid
+          handleLogout() // If no user, force logout
         }
       }
     } catch (error) {
       console.error('Error fetching current user:', error)
-      handleLogout() // Clear on error
+      handleLogout()
     }
   }
 
-  // Logout function
+  // Logout functionality
   const handleLogout = () => {
-    setCurrentUser(null) // Clear user state
-    localStorage.removeItem('currentUser') // Clear localStorage
+    setCurrentUser(null) // Clear current user
+    localStorage.removeItem('currentUser') // Remove from storage
     router.push('/login') // Redirect to login page
   }
 
-  // Initialize current user on mount
+  // Check user state on mount
   useEffect(() => {
     const storedUser = localStorage.getItem('currentUser')
     if (storedUser) {
@@ -52,9 +50,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     } else {
       fetchCurrentUser()
     }
-  }, [pathname])
+  }, [])
 
-  // If not logged in, show only public pages
+  // If no user, show login-related UI
   if (!currentUser) {
     return (
       <html lang="en" suppressHydrationWarning>
@@ -69,7 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     )
   }
 
-  // Layout when logged in
+  // Layout when user is logged in
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-background text-foreground">
@@ -89,32 +87,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <Menu className="h-6 w-6" />
                   </Button>
                 </div>
-
-                {/* Navigation */}
                 <nav className="space-y-2 p-4">
+                  {/* Main Navigation Items */}
                   <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
                   <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
-                  <NavItem href="/tickets" icon={Ticket} label="Tickets" isOpen={isSidebarOpen} />
-
-                  {/* Conditional Menu: Only show "Upload Ticket" for specific roles */}
-                  {currentUser === '96312' && (
-                    <NavItem href="/upload-ticket" icon={Users} label="Upload Ticket" isOpen={isSidebarOpen} />
-                  )}
+                  <NavItem href="/ticket-log" icon={List} label="Ticket Log" isOpen={isSidebarOpen} />
+                  <NavItem href="/upload-ticket" icon={FilePlus} label="Upload Ticket" isOpen={isSidebarOpen} />
+                  <NavItem href="/users" icon={Users} label="Users" isOpen={isSidebarOpen} />
                 </nav>
               </ScrollArea>
-
-              {/* Footer: Logout */}
+              {/* Logout Button */}
               <div className="p-4">
-                <Button variant="ghost" size="icon" onClick={handleLogout}>
-                  <LogOut className="h-6 w-6" />
+                <Button variant="ghost" size="lg" onClick={handleLogout}>
+                  <LogOut className="mr-2 h-5 w-5" /> Logout
                 </Button>
               </div>
             </aside>
-
             {/* Main Content */}
-            <main className="flex-1 p-6 bg-background overflow-auto">
-              {children}
-            </main>
+            <main className="flex-1 p-6 bg-background overflow-auto">{children}</main>
           </div>
         </ThemeProvider>
       </body>
@@ -122,17 +112,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   )
 }
 
-// Reusable Navigation Item Component
-function NavItem({ href, icon: Icon, label, isOpen }: { href: string, icon: any, label: string, isOpen: boolean }) {
+// Navigation Item Component
+function NavItem({ href, icon: Icon, label, isOpen }: { href: string; icon: any; label: string; isOpen: boolean }) {
+  const pathname = usePathname()
+  const isActive = pathname === href
+
   return (
     <a
       href={href}
       className={cn(
-        "flex items-center space-x-2 p-2 rounded-md hover:bg-secondary/10 transition",
-        !isOpen && "justify-center"
+        "flex items-center gap-3 p-2 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+        isActive && "bg-accent text-accent-foreground"
       )}
     >
-      <Icon className="h-6 w-6" />
+      <Icon className="h-5 w-5" />
       {isOpen && <span>{label}</span>}
     </a>
   )
