@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,6 +15,47 @@ export default function LoginPage() {
   const router = useRouter()
   const { toast } = useToast()
 
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      try {
+        const response = await fetch('/api/checkLoggedInUsers')
+        const data = await response.json()
+
+        if (data.loggedInUsers && data.loggedInUsers.length > 0) {
+          const userId = data.loggedInUsers[0]
+          const lastLoginTime = localStorage.getItem('lastLoginTime')
+          
+          if (lastLoginTime) {
+            const lastLogin = new Date(lastLoginTime)
+            const now = new Date()
+            const diffInHours = (now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60)
+            
+            if (diffInHours > 24) {
+              // Force logout if last login was more than 24 hours ago
+              await fetch('/api/logout', { method: 'POST' })
+              localStorage.removeItem('currentUser')
+              localStorage.removeItem('lastLoginTime')
+              router.push('/login')
+            } else {
+              if (userId === '96312') {
+                router.push('/admin/upload-tickets')
+              } else {
+                router.push('/dashboard')
+              }
+            }
+          }
+        } else {
+          localStorage.removeItem('currentUser')
+          localStorage.removeItem('lastLoginTime')
+        }
+      } catch (error) {
+        console.error('Error checking login status:', error)
+      }
+    }
+
+    checkLoginStatus()
+  }, [router])
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsLoading(true)
@@ -24,32 +65,24 @@ export default function LoginPage() {
       const result = await login(formData)
 
       if (result.success) {
-        const sessionToken = result.sessionToken
-        document.cookie = `session_token=${sessionToken}; path=/;`
+        localStorage.setItem('currentUser', JSON.stringify(result.userId))
+        localStorage.setItem('lastLoginTime', result.lastLoginTime)
 
-        const userResponse = await fetch('/api/checkLoggedInUsers')
-        if (userResponse.ok) {
-          const userData = await userResponse.json()
-          localStorage.setItem('currentUser', JSON.stringify(userData.loggedInUsers[0]))
+        toast({
+          title: "Login Successful",
+          description: "You have been successfully logged in.",
+          variant: "default",
+        })
 
-          toast({
-            title: "Login Successful",
-            description: "You have been successfully logged in.",
-            variant: "default", // Changed from "success" to "default"
-          })
-
-          if (userData.loggedInUsers[0] === '96312') {
-            router.push('/admin/upload-tickets')
-          } else {
-            router.push('/dashboard')
-          }
+        if (result.userId === '96312') {
+          router.push('/admin/upload-tickets')
         } else {
-          throw new Error('Failed to fetch user data')
+          router.push('/dashboard')
         }
-      } else if (result.error) {
+      } else {
         toast({
           title: "Login Failed",
-          description: result.error || 'An unknown error occurred',
+          description: result.error || 'Invalid username or password',
           variant: "destructive",
         })
       }
@@ -68,7 +101,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* Left side - Login form */}
-      <div className="w-1/2 flex flex-col items-center justify-center p-8 bg-background">
+      <div className="w-full md:w-1/2 flex flex-col items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">
             <h1 className="text-3xl font-bold">Welcome to New Xaena</h1>
@@ -111,7 +144,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right side - Decorative section */}
-      <div className="w-1/2 bg-primary relative overflow-hidden">
+      <div className="hidden md:block w-1/2 bg-primary relative overflow-hidden">
         <div className="absolute inset-0 bg-primary">
           {/* Decorative shapes */}
           <div className="absolute top-10 right-10 w-32 h-32 rounded-full bg-primary-foreground/10"></div>
