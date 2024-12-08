@@ -6,7 +6,10 @@ export async function GET() {
   const cookieStore = cookies()
   const sessionToken = cookieStore.get('session_token')?.value
 
+  console.log('Session token:', sessionToken) // Debug log
+
   if (!sessionToken) {
+    console.log('No session token found') // Debug log
     return NextResponse.json({ isAuthenticated: false })
   }
 
@@ -16,6 +19,8 @@ export async function GET() {
     const usersCollection = db.collection('login_user')
 
     const user = await usersCollection.findOne({ sessionToken })
+
+    console.log('User found:', user ? 'Yes' : 'No') // Debug log
 
     if (user) {
       return NextResponse.json({ isAuthenticated: true, userId: user.userId })
