@@ -12,20 +12,18 @@ export async function login(formData: FormData) {
   const db = client.db("xaena_db")
   const usersCollection = db.collection<User>('login_user')
 
-  console.log("Attempting to find user:", username) // Debugging
+  console.log("Attempting to find user:", username)
 
   const user = await usersCollection.findOne({ username })
 
   if (user) {
-    console.log("User found:", user) // Debugging
+    console.log("User found:", user)
     if (user.password === password) {
-      console.log("Password matches") // Debugging
+      console.log("Password matches")
 
-      // Generate a unique session token
       const sessionToken = uuidv4()
       const lastLoginTime = new Date()
 
-      // Update the user's session token and login status in the database
       await usersCollection.updateOne(
         { _id: user._id },
         { 
@@ -45,32 +43,29 @@ export async function login(formData: FormData) {
         maxAge: 7 * 24 * 60 * 60 // 7 days
       }
 
-      // Set cookies for the session and the user
       cookies().set('user', username, cookieOptions)
       cookies().set('session_token', sessionToken, cookieOptions)
       cookies().set('auth', 'true', cookieOptions)
       cookies().set('last_login', lastLoginTime.toISOString(), cookieOptions)
 
-      console.log("Cookies set for user:", username) // Debugging
+      console.log("Cookies set for user:", username)
       return { success: true, sessionToken, userId: user._id.toString(), lastLoginTime: lastLoginTime.toISOString() }
     } else {
-      console.log("Password does not match") // Debugging
+      console.log("Password does not match")
     }
   } else {
-    console.log("User not found") // Debugging
+    console.log("User not found")
   }
 
   return { success: false, error: 'Invalid username or password' }
 }
 
-// Helper function to hash passwords (you should implement this)
 async function hashPassword(password: string): Promise<string> {
   // In a real application, you should use a proper hashing algorithm like bcrypt
   // This is just a placeholder
   return password
 }
 
-// Helper function to verify passwords (you should implement this)
 async function verifyPassword(plainTextPassword: string, hashedPassword: string): Promise<boolean> {
   // In a real application, you should use a proper verification method
   // This is just a placeholder
