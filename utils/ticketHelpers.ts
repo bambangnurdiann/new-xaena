@@ -1,5 +1,5 @@
-// Add at the top of the file
-interface Ticket {
+// Add 'export' keyword before the Ticket interface
+export interface Ticket {
   Incident: string;
   assignedTo?: string;
   lastAssignedTime?: number;
