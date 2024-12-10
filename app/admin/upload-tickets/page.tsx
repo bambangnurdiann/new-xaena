@@ -211,6 +211,9 @@ export default function UploadTickets() {
         const savedTickets = await response.json()
         console.log('Saved tickets:', savedTickets)
 
+        // Fetch ulang tiket setelah penyimpanan berhasil
+    await fetchExistingTickets();
+
         await fetch('/api/ticketDistribution', {
           method: 'POST',
           headers: {
@@ -224,7 +227,11 @@ export default function UploadTickets() {
           description: `${savedTickets.length} tickets have been processed and redistributed.`,
         })
 
-        setExistingTickets(savedTickets)
+            // **Update existingTickets di sini**
+    setExistingTickets((prevTickets) => [
+      ...prevTickets,
+      ...processedTickets, // Tambahkan tiket baru yang diproses ke existingTickets
+    ]);
         setCsvData([])
       } else {
         throw new Error('Failed to process tickets')
@@ -271,25 +278,32 @@ export default function UploadTickets() {
   }
 
   const shouldCloseTicket = (ticket: Ticket): boolean => {
-    const { category, TTR } = ticket
-    if (!category || !TTR) return false
+    const { category, TTR, status } = ticket;
+    if (!category || !TTR) return false; // Tiket tanpa kategori atau TTR tidak dapat ditutup.
 
-    const isExisting = existingTickets.some(et => et.Incident === ticket.Incident)
-    if (!isExisting) return false
+ // Periksa apakah tiket adalah tiket yang sudah ada
+ const isExisting = existingTickets.some(et => et.Incident === ticket.Incident);
+ if (!isExisting) return false; // Tiket baru tidak akan ditutup.
+
+   // **Logika baru: Periksa apakah tiket memiliki status 'Completed'**
+   const isWorkedOn = status === 'Completed'; // Tiket dianggap dikerjakan jika status-nya 'Completed'
+   if (!isWorkedOn) return false; // Tiket yang belum selesai tidak akan ditutup.
 
     const [hours, minutes, seconds] = TTR.split(':').map(Number)
     const ttrInMinutes = (hours * 60) + minutes + (seconds / 60)
 
-    console.log(`Checking close condition for ticket ${ticket.Incident}:`)
-    console.log(`Category: ${category}, TTR: ${TTR}`)
-    console.log(`TTR in minutes: ${ttrInMinutes}`)
-    console.log(`Is existing ticket: ${isExisting}`)
+    console.log(`Checking close condition for ticket ${ticket.Incident}:`);
+    console.log(`Category: ${category}, TTR: ${TTR}`);
+    console.log(`TTR in minutes: ${ttrInMinutes}`);
+    console.log(`Is existing ticket: ${isExisting}`);
+    console.log(`Is worked on (status === 'Completed'): ${isWorkedOn}`);
 
-    if (category === 'K2' && ttrInMinutes > 1.5 * 60) return true
-    if (category === 'K3' && ttrInMinutes > 60) return true
+  // Logika penutupan berdasarkan kategori dan TTR
+  if (category === 'K2' && ttrInMinutes > 1.5 * 60) return true; // Kategori K2 ditutup jika TTR > 90 menit
+  if (category === 'K3' && ttrInMinutes > 60) return true;       // Kategori K3 ditutup jika TTR > 60 menit
 
-    return false
-  }
+  return false; // Jika tidak memenuhi kriteria, tiket tetap terbuka
+};
 
   const distributeTickets = async () => {
     try {
