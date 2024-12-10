@@ -74,6 +74,16 @@ export default function MyInbox() {
 
   const fetchNextTicketHandler = useCallback(async () => {
     try {
+
+       // Hanya fetch tiket jika status isWorking adalah true
+    if (!isWorking) {
+      toast({
+        title: "Start Working First",
+        description: "You must click 'Start Working' before fetching tickets.",
+        variant: "destructive",
+      });
+      return; // Jika belum start working, jangan lanjutkan
+    }
       console.log("Fetching the next ticket...")
       const response = await fetch('/api/ticketDistribution', {
         method: 'POST',
@@ -103,7 +113,7 @@ export default function MyInbox() {
         variant: "destructive",
       })
     }
-  }, [loggedInUsername, toast])
+  }, [loggedInUsername, isWorking, toast])
 
   useEffect(() => {
     const fetchTicketAndProgress = async () => {
@@ -247,16 +257,16 @@ export default function MyInbox() {
   const handleStartWorking = useCallback(async () => {
     setIsWorking(true)
     sessionStorage.setItem('isWorking', 'true')
-    
+  
     try {
       const response = await fetch('/api/ticketDistribution', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: loggedInUsername }),
       })
-
+  
       if (!response.ok) throw new Error('Failed to distribute tickets')
-
+  
       const userTickets = await response.json()
       if (userTickets.length > 0) {
         const nextTicket = userTickets[0]
@@ -271,6 +281,11 @@ export default function MyInbox() {
       }
     } catch (error) {
       console.error('Error during ticket distribution:', error)
+      toast({
+        title: "Error",
+        description: "An error occurred while starting to work. Please try again.",
+        variant: "destructive",
+      })
     }
   }, [loggedInUsername, handleNoTicketsAvailable, getAvailableLevels])
 
