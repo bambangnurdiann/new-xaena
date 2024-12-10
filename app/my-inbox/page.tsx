@@ -207,42 +207,49 @@ export default function MyInbox() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username: loggedInUsername }),
-      })
-
+        body: JSON.stringify({ username: loggedInUsername, maxTicketsPerAgent: 5 }),
+      });
+  
       if (!response.ok) {
-        throw new Error('Failed to fetch next ticket')
+        throw new Error('Failed to fetch next ticket');
       }
-
-      const fetchedTickets = await response.json()
-      if (fetchedTickets.length > 0) {
-        const unfinishedTickets = fetchedTickets.filter(
-          (ticket: Ticket) => ticket.status !== 'Completed'
-        )
-
-        if (unfinishedTickets.length > 0) {
-          const nextTicket = unfinishedTickets[0]
-          setCurrentTicket(nextTicket)
-          sessionStorage.setItem('currentTicket', JSON.stringify(nextTicket))
-          setDetailCase(nextTicket["Detail Case"] || '')
-          setAnalisa(nextTicket.Analisa || '')
-          setEscalationLevel(nextTicket["Escalation Level"] || nextTicket.level || '')
-          setAvailableLevels(getAvailableLevels(nextTicket))
-        } else {
-          handleNoTicketsAvailable()
-        }        
+  
+      const fetchedTickets = await response.json();
+      const unfinishedTickets = fetchedTickets.filter((ticket: Ticket) => ticket.status !== 'Completed');
+  
+      if (unfinishedTickets.length > 0) {
+        const nextTicket = unfinishedTickets[0];
+        setCurrentTicket(nextTicket);
+        sessionStorage.setItem('currentTicket', JSON.stringify(nextTicket));
+        setDetailCase(nextTicket["Detail Case"] || '');
+        setAnalisa(nextTicket.Analisa || '');
+        setEscalationLevel(nextTicket["Escalation Level"] || nextTicket.level || '');
+        setAvailableLevels(getAvailableLevels(nextTicket));
       } else {
-        handleNoTicketsAvailable()
+        // Redistribute tickets if no active tickets remain for this user
+        const response = await fetch(`/api/redistributeTickets`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username: loggedInUsername }),
+        });
+  
+        if (response.ok) {
+          console.log('Redistribution triggered successfully');
+        }
+        handleNoTicketsAvailable();
       }
     } catch (error) {
-      console.error('Error fetching next ticket:', error)
+      console.error('Error fetching next ticket:', error);
       toast({
         title: "Fetch Error",
         description: "An error occurred while fetching the next ticket. Please try again later.",
         variant: "destructive",
-      })
+      });
     }
-  }, [loggedInUsername, getAvailableLevels, toast])
+  }, [loggedInUsername, getAvailableLevels, toast]);
+  
 
   const handleNoTicketsAvailable = useCallback(() => {
     setCurrentTicket(null)
@@ -255,39 +262,55 @@ export default function MyInbox() {
   }, [toast])
 
   const handleStartWorking = useCallback(async () => {
-    setIsWorking(true)
-    sessionStorage.setItem('isWorking', 'true')
+    // Set local state for working status
+    setIsWorking(true);
+    sessionStorage.setItem('isWorking', 'true');
   
     try {
+      // Update user's working status in the backend
+      const statusUpdateResponse = await fetch('/api/updateUserStatus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loggedInUsername, isWorking: true }),
+      });
+  
+      if (!statusUpdateResponse.ok) {
+        throw new Error('Failed to update working status');
+      }
+  
+      // Once the status is updated, proceed to fetch and distribute tickets
       const response = await fetch('/api/ticketDistribution', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: loggedInUsername }),
-      })
+        body: JSON.stringify({ username: loggedInUsername, maxTicketsPerAgent: 5 }), // Distribusi batch pertama
+      });
   
-      if (!response.ok) throw new Error('Failed to distribute tickets')
+      if (!response.ok) {
+        throw new Error('Failed to distribute tickets');
+      }
   
-      const userTickets = await response.json()
+      const userTickets = await response.json();
       if (userTickets.length > 0) {
-        const nextTicket = userTickets[0]
-        setCurrentTicket(nextTicket)
-        sessionStorage.setItem('currentTicket', JSON.stringify(nextTicket))
-        setDetailCase(nextTicket["Detail Case"] || '')
-        setAnalisa(nextTicket.Analisa || '')
-        setEscalationLevel(nextTicket["Escalation Level"] || nextTicket.level || '')
-        setAvailableLevels(getAvailableLevels(nextTicket))
+        const nextTicket = userTickets[0];
+        setCurrentTicket(nextTicket);
+        sessionStorage.setItem('currentTicket', JSON.stringify(nextTicket));
+        setDetailCase(nextTicket["Detail Case"] || '');
+        setAnalisa(nextTicket.Analisa || '');
+        setEscalationLevel(nextTicket["Escalation Level"] || nextTicket.level || '');
+        setAvailableLevels(getAvailableLevels(nextTicket));
       } else {
-        handleNoTicketsAvailable()
+        handleNoTicketsAvailable();
       }
     } catch (error) {
-      console.error('Error during ticket distribution:', error)
+      console.error('Error during ticket distribution:', error);
       toast({
         title: "Error",
         description: "An error occurred while starting to work. Please try again.",
         variant: "destructive",
-      })
+      });
     }
-  }, [loggedInUsername, handleNoTicketsAvailable, getAvailableLevels])
+  }, [loggedInUsername, handleNoTicketsAvailable, getAvailableLevels]);
+  
 
   const handleAuxToggle = useCallback(() => {
     if (isPaused) {
