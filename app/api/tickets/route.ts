@@ -6,27 +6,28 @@ import { WithId, Document } from 'mongodb';
 
 // Helper functions moved to utils to keep route handler focused
 import {
+  Ticket,
   getWIBTime,
   isMaxEscalationLevel,
   escalateLevel,
   assignLevelBasedOnTTR,
-  shouldCloseTicket,
+//  shouldCloseTicket,
 } from '@/utils/ticketHelpers';
 
-interface Ticket {
-  Incident: string;
-  assignedTo?: string;
-  lastAssignedTime?: number;
-  status?: string;
-  SID?: string;
-  TTR: string;
-  category?: string;
-  level?: string;
-  lastUpdated?: string;
-  'Detail Case'?: string;
-  Analisa?: string;
-  'Escalation Level'?: string;
-}
+//interface Ticket {
+ // Incident: string;
+ // assignedTo?: string;
+ // lastAssignedTime?: number;
+ // status?: string;
+ // SID?: string;
+  //TTR: string;
+  //category?: string;
+  //level?: string;
+  //lastUpdated?: string;
+  //'Detail Case'?: string;
+  //Analisa?: string;
+  //'Escalation Level'?: string;
+//}
 
 export async function GET() {
   try {
@@ -34,12 +35,34 @@ export async function GET() {
     const db = client.db('xaena_db');
     const ticketsCollection = db.collection('tickets');
 
+
     const tickets = await ticketsCollection.find({}).toArray();
     return NextResponse.json(tickets);
   } catch (error) {
     console.error('Error fetching tickets:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+export function shouldCloseTicket(
+  ticket: Ticket,
+  existingTicket: Ticket | null
+): boolean {
+  if (!existingTicket || existingTicket.status !== 'Completed') {
+    return false; // Jangan tutup tiket jika belum "Completed"
+  }
+
+  // Logika tambahan jika statusnya sudah "Completed"
+  const { category, TTR } = ticket;
+  if (!category || !TTR) return false;
+
+  const [hours, minutes, seconds] = TTR.split(':').map(Number);
+  const ttrInMinutes = hours * 60 + minutes + seconds / 60;
+
+  if (category === 'K2' && ttrInMinutes > 90) return true;
+  if (category === 'K3' && ttrInMinutes > 60) return true;
+
+  return false;
 }
 
 export async function POST(request: Request) {
@@ -82,6 +105,8 @@ export async function POST(request: Request) {
         throw new Error('Operation timeout');
       }
 
+      const shouldClose = shouldCloseTicket(ticket, existingTicket);
+
       if (existingTicket) {
         if (existingTicket.status === 'Completed' && !isMaxEscalationLevel(existingTicket)) {
           bulkOps.push({
@@ -96,25 +121,27 @@ export async function POST(request: Request) {
               },
             },
           });
-        } else if (shouldCloseTicket(ticket, existingTicket)) {
-          closeOps.push({
-            updateOne: {
-              filter: { ticketId: ticket.Incident },
-              update: {
-                $set: {
-                  action: 'Closed',
-                  timestamp: currentTime,
+        } else if (shouldClose) {
+          if (existingTicket.status === 'Completed') { // Validasi tambahan
+            closeOps.push({
+              updateOne: {
+                filter: { ticketId: ticket.Incident },
+                update: {
+                  $set: {
+                    action: 'Closed',
+                    timestamp: currentTime,
+                  },
                 },
+                upsert: true,
               },
-              upsert: true,
-            },
-          });
+            });
 
-          bulkOps.push({
-            deleteOne: {
-              filter: { Incident: ticket.Incident },
-            },
-          });
+            bulkOps.push({
+              deleteOne: {
+                filter: { Incident: ticket.Incident },
+              },
+            });
+          }
         } else {
           bulkOps.push({
             updateOne: {
@@ -152,6 +179,12 @@ export async function POST(request: Request) {
       bulkOps.length > 0 ? ticketsCollection.bulkWrite(bulkOps) : null,
       closeOps.length > 0 ? closedTicketsCollection.bulkWrite(closeOps) : null,
     ]);
+
+    // After bulkWrite finishes, fetch updated tickets
+    if (bulkWriteResult) {
+      const updatedTickets = await ticketsCollection.find({}).toArray();
+      console.log('Updated tickets:', updatedTickets);
+    }
 
     return NextResponse.json({
       success: true,
