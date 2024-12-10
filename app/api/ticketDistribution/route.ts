@@ -48,13 +48,18 @@ export async function POST(request: Request) {
     if (!loggedInUsers.includes(username)) loggedInUsers.push(username);  // Add the current user if not already in the list
     console.log('Active users for distribution:', loggedInUsers);
 
-    // Distribusikan tiket kepada semua pengguna yang login
+    // Distribusikan tiket kepada pengguna yang login dengan pembatasan maksimal 5 tiket per agen
+    const maxTicketsPerAgent = 5;
     const currentTime = Date.now();
+    const assignedTickets: Ticket[] = [];
+
     tickets.forEach(ticket => {
-      if (!ticket.assignedTo) {
-        // Jika tiket belum terassign, distribusikan ke pengguna
-        ticket.assignedTo = loggedInUsers[Math.floor(Math.random() * loggedInUsers.length)];
+      if (!ticket.assignedTo && assignedTickets.length < maxTicketsPerAgent) {
+        // Jika tiket belum di-assign dan agen belum mencapai batas maksimal tiket
+        ticket.assignedTo = username;
         ticket.lastAssignedTime = currentTime;
+        ticket.status = 'Active';  // Tiket yang di-assign menjadi 'Active'
+        assignedTickets.push(ticket);
       }
     });
 
@@ -89,28 +94,28 @@ export async function POST(request: Request) {
     const userTickets = distributedTickets.filter(ticket => ticket.assignedTo === username);
     console.log('Returning response with user tickets count:', userTickets.length);
 
-// Update tickets in the database
-const operations = distributedTickets.map(ticket => ({
-  updateOne: {
-    filter: { Incident: ticket.Incident },  // Make sure you are filtering by a unique field (e.g., Incident)
-    update: {
-      $set: {
-        // Add only the fields that need to be updated, excluding '_id'
-        assignedTo: ticket.assignedTo,
-        lastAssignedTime: ticket.lastAssignedTime,
-        status: ticket.status,
-        category: ticket.category,
-        level: ticket.level,
-        SID: ticket.SID,
-        TTR: ticket.TTR
+    // Update tickets in the database
+    const operations = distributedTickets.map(ticket => ({
+      updateOne: {
+        filter: { Incident: ticket.Incident },  // Make sure you are filtering by a unique field (e.g., Incident)
+        update: {
+          $set: {
+            // Add only the fields that need to be updated, excluding '_id'
+            assignedTo: ticket.assignedTo,
+            lastAssignedTime: ticket.lastAssignedTime,
+            status: ticket.status,
+            category: ticket.category,
+            level: ticket.level,
+            SID: ticket.SID,
+            TTR: ticket.TTR
+          },
+        },
+        upsert: true,
       },
-    },
-    upsert: true,
-  },
-}));
+    }));
 
-const updateResult = await ticketsCollection.bulkWrite(operations);
-console.log('Database update result:', updateResult);
+    const updateResult = await ticketsCollection.bulkWrite(operations);
+    console.log('Database update result:', updateResult);
 
     return NextResponse.json(userTickets);
   } catch (error) {
@@ -128,7 +133,8 @@ function distributeTickets(
   loggedInUsers: string[],
   requestingUser: string,
   processedTickets: string[],
-  ticketHistory: Record<string, Set<string>>
+  ticketHistory: Record<string, Set<string>>,
+  maxTicketsPerAgent: number = 5
 ): Ticket[] {
   const currentTime = Date.now();
 
@@ -154,21 +160,6 @@ function distributeTickets(
     }
   });
 
-  // Redistribute tickets with "Completed" status but not at maximum escalation level
-  tickets.forEach(ticket => {
-    if (
-      ticket.status === 'Completed' &&
-      ((ticket.category === 'K1' && ticket.level !== 'L7') ||
-       (ticket.category === 'K2' && ticket.level !== 'L3') ||
-       (ticket.category === 'K3' && ticket.level !== 'L2'))
-    ) {
-      ticket.status = 'Active'; // Mark as active
-      ticket.level = escalateLevel(ticket.level); // Pass ticket.level instead of ticket
-      ticket.assignedTo = undefined; // Reset assignment
-      console.log(`Ticket ${ticket.Incident} marked as active for redistribution.`);
-    }
-  });
-
   // 3. Filter unassigned tickets and exclude already processed tickets
   const unassignedTickets = tickets.filter(ticket =>
     !ticket.assignedTo &&
@@ -190,13 +181,18 @@ function distributeTickets(
     return (levelOrder[a.level as keyof typeof levelOrder] || 0) - (levelOrder[b.level as keyof typeof levelOrder] || 0);
   });
 
-  // 5. Assign all unassigned tickets to requesting user
-  unassignedTickets.forEach(ticket => {
+  // 5. Assign limited tickets to requesting user
+  const assignedTickets: Ticket[] = [];
+  for (const ticket of unassignedTickets) {
+    if (assignedTickets.length >= maxTicketsPerAgent) break;
     ticket.assignedTo = requestingUser;
     ticket.lastAssignedTime = currentTime;
-  });
+    assignedTickets.push(ticket);
+  }
 
-  return tickets;
+  console.log(`Assigned ${assignedTickets.length} tickets to user: ${requestingUser}`);
+
+  return [...tickets];
 }
 
 function escalateLevel(currentLevel?: string): string {
