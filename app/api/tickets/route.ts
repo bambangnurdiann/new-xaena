@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'; // Ensure dynamic route processing
 
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
+import { shouldCloseTicket } from '@/utils/ticketHelpers';
 import { WithId, Document } from 'mongodb';
 
 // Helper functions moved to utils to keep route handler focused
@@ -11,7 +12,6 @@ import {
   isMaxEscalationLevel,
   escalateLevel,
   assignLevelBasedOnTTR,
-//  shouldCloseTicket,
 } from '@/utils/ticketHelpers';
 
 //interface Ticket {
@@ -35,34 +35,12 @@ export async function GET() {
     const db = client.db('xaena_db');
     const ticketsCollection = db.collection('tickets');
 
-
     const tickets = await ticketsCollection.find({}).toArray();
     return NextResponse.json(tickets);
   } catch (error) {
     console.error('Error fetching tickets:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
-
-export function shouldCloseTicket(
-  ticket: Ticket,
-  existingTicket: Ticket | null
-): boolean {
-  if (!existingTicket || existingTicket.status !== 'Completed') {
-    return false; // Jangan tutup tiket jika belum "Completed"
-  }
-
-  // Logika tambahan jika statusnya sudah "Completed"
-  const { category, TTR } = ticket;
-  if (!category || !TTR) return false;
-
-  const [hours, minutes, seconds] = TTR.split(':').map(Number);
-  const ttrInMinutes = hours * 60 + minutes + seconds / 60;
-
-  if (category === 'K2' && ttrInMinutes > 90) return true;
-  if (category === 'K3' && ttrInMinutes > 60) return true;
-
-  return false;
 }
 
 export async function POST(request: Request) {
