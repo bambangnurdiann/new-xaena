@@ -71,7 +71,9 @@ export function getWIBTime(): string {
   }
   
   export function shouldCloseTicket(ticket: Ticket, existingTicket: Ticket | null): boolean {
-    if (!existingTicket) return false;
+    if (!existingTicket || existingTicket.status !== 'Completed') {
+      return false;
+    }
   
     const { category, TTR } = ticket;
     if (!category || !TTR) return false;
