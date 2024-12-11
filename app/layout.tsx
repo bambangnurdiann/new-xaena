@@ -98,9 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
                     <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
                     <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
-                    {currentUser === '96312' && (
-                      <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
-                    )}
+                    <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
                     <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
                   </nav>
                 </ScrollArea>
