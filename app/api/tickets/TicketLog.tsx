@@ -164,7 +164,7 @@ export default function TicketLog() {
       toast({
         title: "No Data",
         description: "There is no data available for the selected date range.",
-        variant: "warning",
+        variant: undefined,
       });
       return;
     }
