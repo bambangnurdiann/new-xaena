@@ -9,8 +9,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Download } from 'lucide-react';
-import { format, isAfter, isBefore, isEqual } from "date-fns";
+import { CalendarIcon } from 'lucide-react';
+import { format } from "date-fns";
 
 interface Ticket {
   Incident: string;
@@ -33,30 +33,30 @@ export default function TicketLog() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [startDate, setStartDate] = useState<Date | undefined>();
-  const [endDate, setEndDate] = useState<Date | undefined>();
   const { toast } = useToast();
 
   const fetchLogEntries = useCallback(async (date: Date) => {
     setIsLoading(true);
     setError(null);
     try {
-      console.log('Fetching log entries for date:', date);
       const response = await fetch('/api/tickets');
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Received non-JSON response from server");
+        throw new Error(`Failed to fetch ticket logs: ${response.status} ${response.statusText}`);
       }
       const data = await response.json();
-      console.log('Raw data from API:', data);
 
       const startOfDay = new Date(date.setHours(0, 0, 0, 0)).getTime();
       const endOfDay = new Date(date.setHours(23, 59, 59, 999)).getTime();
 
       const filteredLogs: Ticket[] = data
+        .filter((ticket: Ticket) => {
+          const ticketTime = new Date(ticket.lastUpdated || '').getTime();
+          return (
+            ticket.status === 'Completed' &&
+            ticketTime >= startOfDay &&
+            ticketTime <= endOfDay
+          );
+        })
         .map((ticket: Ticket) => ({
           ...ticket,
           username: ticket.assignedTo || "N/A",
@@ -70,16 +70,15 @@ export default function TicketLog() {
           },
         }));
 
-      console.log('Filtered logs:', filteredLogs);
       setLogEntries(filteredLogs);
       setFilteredEntries(filteredLogs);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
       console.error('Error fetching ticket logs:', errorMessage);
-      setError(`Failed to fetch ticket logs: ${errorMessage}. Please check your network connection and try again.`);
+      setError(errorMessage);
       toast({
         title: "Error",
-        description: `Failed to fetch ticket logs. Please try again later.`,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -128,135 +127,12 @@ export default function TicketLog() {
     setSelectedDate(date);
   };
 
-  const handleDownloadCSV = () => {
-    if (!startDate || !endDate) {
-      toast({
-        title: "Error",
-        description: "Please select both start and end dates for download.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    console.log('Date range for CSV:', { startDate, endDate });
-    console.log('All log entries before filtering:', logEntries);
-
-    // Adjust the end date to include the entire day
-    const adjustedEndDate = new Date(endDate);
-    adjustedEndDate.setHours(23, 59, 59, 999);
-
-    const filteredData = logEntries.filter(entry => {
-      if (!entry.lastUpdated) {
-        console.warn('Entry missing lastUpdated:', entry);
-        return false;
-      }
-      const entryDate = new Date(entry.lastUpdated);
-      const isInRange = (entryDate >= startDate && entryDate <= adjustedEndDate);
-      if (!isInRange) {
-        console.log('Entry out of range:', { entry, entryDate, startDate, adjustedEndDate });
-      }
-      return isInRange;
-    });
-
-    console.log('Filtered data for CSV:', filteredData);
-
-    if (filteredData.length === 0) {
-      toast({
-        title: "No Data",
-        description: "There is no data available for the selected date range.",
-        variant: undefined,
-      });
-      return;
-    }
-
-    const csvContent = [
-      ["Timestamp", "Incident", "User", "Action", "Detail Case", "Analisa", "Escalation Level"],
-      ...filteredData.map(entry => [
-        entry.lastUpdated || '',
-        entry.Incident || '',
-        entry.assignedTo || '',
-        entry.status || '',
-        entry['Detail Case'] || '',
-        entry.Analisa || '',
-        entry['Escalation Level'] || ''
-      ])
-    ].map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n");
-
-    console.log('CSV content:', csvContent);
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      link.setAttribute("download", `ticket_log_${format(startDate, "yyyyMMdd")}_${format(adjustedEndDate, "yyyyMMdd")}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      toast({
-        title: "Success",
-        description: "CSV file has been downloaded.",
-        variant: "default",
-      });
-    } else {
-      toast({
-        title: "Error",
-        description: "Your browser doesn't support downloading files.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const validateAndLogData = useCallback(() => {
-    console.log('All log entries:', logEntries);
-    console.log('Filtered entries:', filteredEntries);
-    
-    if (logEntries.length === 0) {
-      console.warn('No log entries available. This might indicate an issue with data fetching or filtering.');
-    }
-    
-    if (filteredEntries.length === 0) {
-      console.warn('No filtered entries available. This might indicate an issue with the search or date filtering.');
-    }
-    
-    // Check for any entries with missing or invalid data
-    const invalidEntries = logEntries.filter(entry => 
-      !entry.Incident || !entry.lastUpdated || !entry.status
-    );
-    
-    if (invalidEntries.length > 0) {
-      console.warn('Found entries with missing or invalid data:', invalidEntries);
-    }
-  }, [logEntries, filteredEntries]);
-
-  useEffect(() => {
-    validateAndLogData();
-  }, [validateAndLogData, logEntries, filteredEntries]);
-
-  useEffect(() => {
-    console.log('logEntries updated:', logEntries);
-  }, [logEntries]);
-
   if (isLoading) {
     return <div>Loading ticket logs...</div>;
   }
 
   if (error) {
-    return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Error</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>{error}</p>
-          <Button className="mt-4" onClick={() => fetchLogEntries(selectedDate || new Date())}>
-            Retry
-          </Button>
-        </CardContent>
-      </Card>
-    );
+    return <div>Error: {error}</div>;
   }
 
   return (
@@ -291,32 +167,6 @@ export default function TicketLog() {
             </Popover>
           </div>
           <div className="flex items-center space-x-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {startDate && endDate ? `${format(startDate, "dd/MM/yyyy")} - ${format(endDate, "dd/MM/yyyy")}` : <span>Select date range for CSV</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="range"
-                  selected={{
-                    from: startDate,
-                    to: endDate,
-                  }}
-                  onSelect={(range) => {
-                    setStartDate(range?.from);
-                    setEndDate(range?.to);
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-            <Button onClick={handleDownloadCSV} disabled={!startDate || !endDate}>
-              <Download className="mr-2 h-4 w-4" />
-              Download CSV
-            </Button>
             <Button onClick={handleSortChange}>
               Sort by {sortOrder === 'newest' ? 'Oldest' : 'Newest'}
             </Button>
@@ -389,4 +239,3 @@ export default function TicketLog() {
     </Card>
   );
 }
-
