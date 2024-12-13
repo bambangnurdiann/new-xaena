@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Papa from 'papaparse'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useToast } from "@/components/ui/use-toast"
+import { toast, useToast } from "@/components/ui/use-toast"
 
 interface Ticket {
   _id?: string
@@ -67,17 +67,29 @@ export default function UploadTickets() {
     }
   }, [toast])
 
-  useEffect(() => {
-    fetchExistingTickets()
-    fetchLoggedInUsers()
-  }, [fetchExistingTickets, fetchLoggedInUsers])
-
-  useEffect(() => {
-    const storedLastUploadTime = localStorage.getItem('lastUploadTime')
-    if (storedLastUploadTime) {
-      setLastUploadTime(new Date(storedLastUploadTime))
+  const fetchLastUploadTime = useCallback(async () => {
+    try {
+      const response = await fetch('/api/lastUploadTime');
+      if (response.ok) {
+        const data = await response.json();
+        setLastUploadTime(new Date(data.lastUploadTime));
+      } else {
+        throw new Error('Failed to fetch last upload time');
+      }
+    } catch (error) {
+      console.error('Error fetching last upload time:', error);
     }
-  }, [])
+  }, []); // Empty dependency array ensures this function is memoized and doesn't recreate
+  
+  useEffect(() => {
+    fetchExistingTickets();
+    fetchLoggedInUsers();
+    fetchLastUploadTime(); // Use the memoized function
+  }, [fetchExistingTickets, fetchLoggedInUsers, fetchLastUploadTime]); // Ensure these dependencies are memoized too
+  
+
+
+  
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -98,8 +110,24 @@ export default function UploadTickets() {
             setIsCategorizing(true)
             const categorizedTickets = await fetchFilterCategories(tickets)
             setCsvData(categorizedTickets)
-            setLastUploadTime(new Date())
-            localStorage.setItem('lastUploadTime', new Date().toISOString())
+            
+            // Update last upload time on the server
+            const response = await fetch('/api/lastUploadTime', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ lastUploadTime: new Date().toISOString() }),
+            })
+
+            if (response.ok) {
+              const data = await response.json()
+              setLastUploadTime(new Date(data.lastUploadTime))
+              await fetchLastUploadTime()
+            } else {
+              throw new Error('Failed to update last upload time')
+            }
+
             toast({
               title: "CSV Uploaded",
               description: `${categorizedTickets.length} tickets have been uploaded and categorized.`,
@@ -397,14 +425,8 @@ export default function UploadTickets() {
           <h3 className="font-semibold mb-2">Last Uploaded Data:</h3>
           <p className="text-sm text-gray-600">
             {lastUploadTime
-              ? lastUploadTime.toLocaleString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                })
-              : 'No data has been uploaded yet.'}
+          ? new Date(lastUploadTime).toLocaleString()
+          : 'No data uploaded yet.'}
           </p>
         </div>
       </CardContent>
