@@ -74,16 +74,14 @@ export default function MyInbox() {
 
   const fetchNextTicketHandler = useCallback(async () => {
     try {
-
-       // Hanya fetch tiket jika status isWorking adalah true
-    if (!isWorking) {
-      toast({
-        title: "Start Working First",
-        description: "You must click 'Start Working' before fetching tickets.",
-        variant: "destructive",
-      });
-      return; // Jika belum start working, jangan lanjutkan
-    }
+      if (!isWorking) {
+        toast({
+          title: "Start Working First",
+          description: "You must click 'Start Working' before fetching tickets.",
+          variant: "destructive",
+        });
+        return;
+      }
       console.log("Fetching the next ticket...")
       const response = await fetch('/api/ticketDistribution', {
         method: 'POST',
@@ -250,7 +248,6 @@ export default function MyInbox() {
     }
   }, [loggedInUsername, getAvailableLevels, toast]);
   
-
   const handleNoTicketsAvailable = useCallback(() => {
     setCurrentTicket(null)
     sessionStorage.removeItem('currentTicket')
@@ -262,12 +259,10 @@ export default function MyInbox() {
   }, [toast])
 
   const handleStartWorking = useCallback(async () => {
-    // Set local state for working status
     setIsWorking(true);
     sessionStorage.setItem('isWorking', 'true');
   
     try {
-      // Update user's working status in the backend
       const statusUpdateResponse = await fetch('/api/updateUserStatus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -278,11 +273,10 @@ export default function MyInbox() {
         throw new Error('Failed to update working status');
       }
   
-      // Once the status is updated, proceed to fetch and distribute tickets
       const response = await fetch('/api/ticketDistribution', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: loggedInUsername, maxTicketsPerAgent: 5 }), // Distribusi batch pertama
+        body: JSON.stringify({ username: loggedInUsername, maxTicketsPerAgent: 5 }),
       });
   
       if (!response.ok) {
@@ -309,8 +303,7 @@ export default function MyInbox() {
         variant: "destructive",
       });
     }
-  }, [loggedInUsername, handleNoTicketsAvailable, getAvailableLevels]);
-  
+  }, [loggedInUsername, handleNoTicketsAvailable, getAvailableLevels, toast]);
 
   const handleAuxToggle = useCallback(() => {
     if (isPaused) {
@@ -351,7 +344,6 @@ export default function MyInbox() {
       variant: "default",
     })
   }, [toast])
-
 
   const handleLogout = useCallback(async () => {
     try {
@@ -468,7 +460,7 @@ export default function MyInbox() {
   }, [])
 
   return (
-    <main className="min-h-screen p-6 bg-gray-100">
+    <main className="min-h-screen p-6 bg-background">
       <div className="container mx-auto space-y-6">
         {showUpdateAlert && (
           <Alert>
@@ -480,7 +472,7 @@ export default function MyInbox() {
           </Alert>
         )}
 
-        <Card className="bg-white shadow-lg">
+        <Card className="bg-card text-card-foreground">
           <CardHeader className="bg-primary text-primary-foreground">
             <div className="flex justify-between items-center">
               <CardTitle className="text-2xl font-bold">Ticket Management System</CardTitle>
