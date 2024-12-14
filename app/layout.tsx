@@ -111,7 +111,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </TooltipProvider>
 
               <main className={cn(
-                "flex-1 flex flex-col overflow-hidden transition-all duration-300 bg-background",
+                "flex-1 flex flex-col overflow-hidden transition-all duration-300 bg-background pb-8",
                 isSidebarOpen ? "ml-64" : "ml-20"
               )}>
                 <div className="flex justify-end p-4">
@@ -124,10 +124,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
               </main>
             </div>
-            <Footer className={cn(
-              "bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))] text-center py-4 transition-all duration-300",
-              isSidebarOpen ? "ml-64" : "ml-20"
-            )} />
+            <Footer />
           </div>
         </ThemeProvider>
       </body>
@@ -137,7 +134,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 function Footer({ className }: { className?: string }) {
   return (
-    <footer className={className}>
+    <footer className={cn(
+      "fixed bottom-2 right-2 text-xs text-muted-foreground",
+      className
+    )}>
       <p>Created by Bambang Nurdiansyah</p>
     </footer>
   );
@@ -234,18 +234,7 @@ function ProfileMenu({ userId, isOpen }: { userId: string; isOpen: boolean }) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <User className="mr-2 h-4 w-4" />
-          <span>Profile</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem>
-          <Lock className="mr-2 h-4 w-4" />
-          <span>Change Password</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem>
-          <Shield className="mr-2 h-4 w-4" />
-          <span>Activate 2FA</span>
-        </DropdownMenuItem>
+        
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
