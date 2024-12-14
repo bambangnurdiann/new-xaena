@@ -88,7 +88,7 @@ export default function TicketList() {
     return tickets
       .filter(ticket => 
         Object.values(ticket).some(value => 
-          value.toString().toLowerCase().includes(searchTerm.toLowerCase())
+          value != null && value.toString().toLowerCase().includes(searchTerm.toLowerCase())
         )
       )
       .sort((a, b) => {
