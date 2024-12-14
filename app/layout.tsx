@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useToast } from "@/components/ui/use-toast"
+import { toast, useToast } from "@/components/ui/use-toast"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -99,6 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
                     <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
                     <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
+
                     <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
                   </nav>
                 </ScrollArea>
@@ -145,29 +146,38 @@ function NavItem({ href, icon: Icon, label, isOpen }: { href: string; icon: Reac
 function ProfileMenu({ userId }: { userId: string }) {
   const router = useRouter();
 
-const handleLogout = async () => {
-  try {
-    const response = await fetch('/api/logout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    if (response.ok) {
-      // Clear localStorage, sessionStorage, and cookies
-      localStorage.removeItem('currentUser');
-      sessionStorage.clear();
-      document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-
-      // Redirect to login and refresh the page
-      router.push('/login');
-      setTimeout(() => window.location.reload(), 100); // Force a reload for a clean state
-    } else {
-      console.error('Logout failed');
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/logout', {
+        method: 'POST',
+      });
+  
+      if (response.ok) {
+        // Clear local state and redirect to login
+        localStorage.removeItem('currentUser');
+        router.push('/login');
+        toast({
+          title: 'Logged out',
+          description: 'You have been successfully logged out.',
+          duration: 3000, // Optional: duration in milliseconds
+        });
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: 'Error',
+          description: errorData.error || 'Logout failed. Please try again.',
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred.',
+        duration: 3000,
+      });
     }
-  } catch (error) {
-    console.error('Error during logout:', error);
-  }
-};
+  };
 
 
   return (
@@ -225,3 +235,4 @@ function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTML
     />
   )
 }
+
