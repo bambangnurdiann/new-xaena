@@ -1,36 +1,32 @@
-import { motion } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Send } from 'lucide-react'
 
 interface Ticket {
   Incident: string
+  category?: string  // Changed to lowercase to match the data structure
   "Detail Case"?: string
   Analisa?: string
   "Escalation Level"?: string
-  assignedTo?: string
-  lastAssignedTime?: number
-  status?: string
-  category?: string
-  level?: string
   SID?: string
-  TTR?: number
+  level?: string
 }
 
 interface CurrentTicketCardProps {
-  ticket: Ticket;
-  detailCase: string;
-  setDetailCase: (value: string) => void;
-  analisa: string;
-  setAnalisa: (value: string) => void;
-  escalationLevel: string;
-  setEscalationLevel: (value: string) => void;
-  availableLevels: string[];
-  handleSubmit: () => void;
+  ticket: Ticket
+  detailCase: string
+  setDetailCase: (value: string) => void
+  analisa: string
+  setAnalisa: (value: string) => void
+  escalationLevel: string
+  setEscalationLevel: (value: string) => void
+  availableLevels: string[]
+  handleSubmit: () => void
 }
 
 export default function CurrentTicketCard({
@@ -44,92 +40,111 @@ export default function CurrentTicketCard({
   availableLevels,
   handleSubmit
 }: CurrentTicketCardProps) {
+  const getCategoryVariant = (category?: string) => {
+    switch (category) {
+      case 'K1':
+        return 'destructive'
+      case 'K2':
+        return 'secondary'
+      default:
+        return 'default'
+    }
+  }
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3 }}
-    >
-      <Card className="bg-white shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold">Current Ticket</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="font-semibold text-gray-600">Incident</p>
-              <p className="text-lg">{ticket.Incident}</p>
-            </div>
-            <div>
-              <p className="font-semibold text-gray-600">Category</p>
-              <Badge variant={ticket.category === 'K1' ? 'destructive' : ticket.category === 'K2' ? 'secondary' : 'default'}>
+    <Card className="bg-card text-card-foreground">
+      <CardHeader>
+        <CardTitle>Current Ticket</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="incident">Incident</Label>
+            <Input
+              id="incident"
+              value={ticket.Incident}
+              readOnly
+              className="border-0 px-0"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <div className="flex items-center h-10">
+              <Badge 
+                variant={getCategoryVariant(ticket.category)}
+                className="text-sm font-medium"
+              >
                 {ticket.category}
               </Badge>
             </div>
-            <div>
-              <p className="font-semibold text-gray-600">Current Level</p>
-              <Badge variant="outline">{ticket.level}</Badge>
-            </div>
-            <div>
-              <p className="font-semibold text-gray-600">SID</p>
-              <p>{ticket.SID || 'N/A'}</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="currentLevel">Current Level</Label>
+            <div className="flex items-center h-10">
+              <Badge 
+                variant="outline"
+                className="text-sm font-medium"
+              >
+                {ticket.level}
+              </Badge>
             </div>
           </div>
-
-          <Separator />
-
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="detailCase" className="block font-semibold text-gray-700 mb-2">
-                Detail Case
-              </label>
-              <Textarea
-                id="detailCase"
-                value={detailCase}
-                onChange={(e) => setDetailCase(e.target.value)}
-                className="min-h-[100px] w-full"
-                placeholder="Enter case details..."
-              />
-            </div>
-            <div>
-              <label htmlFor="analisa" className="block font-semibold text-gray-700 mb-2">
-                Analisa
-              </label>
-              <Textarea
-                id="analisa"
-                value={analisa}
-                onChange={(e) => setAnalisa(e.target.value)}
-                className="min-h-[100px] w-full"
-                placeholder="Enter analysis..."
-              />
-            </div>
-            <div>
-              <label htmlFor="escalationLevel" className="block font-semibold text-gray-700 mb-2">
-                Escalation Level
-              </label>
-              <Select onValueChange={setEscalationLevel} value={escalationLevel || ticket.level || ''}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select Escalation Level" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableLevels.map((level) => (
-                    <SelectItem key={level} value={level}>
-                      {level}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="sid">SID</Label>
+            <Input
+              id="sid"
+              value={ticket.SID || ''}
+              readOnly
+              className="border-0 px-0"
+            />
           </div>
-        </CardContent>
-        <CardFooter className="bg-gray-50 flex justify-end space-x-4 p-4">
-          <Button onClick={handleSubmit} variant="default">
-            <Send className="mr-2 h-4 w-4" /> Submit Changes
-          </Button>
-        </CardFooter>
-      </Card>
-    </motion.div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="detailCase">Detail Case</Label>
+          <Textarea
+            id="detailCase"
+            value={detailCase}
+            onChange={(e) => setDetailCase(e.target.value)}
+            className="min-h-[100px] bg-background"
+            placeholder="Enter case details..."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="analisa">Analisa</Label>
+          <Textarea
+            id="analisa"
+            value={analisa}
+            onChange={(e) => setAnalisa(e.target.value)}
+            className="min-h-[100px] bg-background"
+            placeholder="Enter analysis..."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="escalationLevel">Escalation Level</Label>
+          <Select value={escalationLevel} onValueChange={setEscalationLevel}>
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Select escalation level" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableLevels.map((level) => (
+                <SelectItem key={level} value={level}>
+                  {level}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardContent>
+      <CardFooter>
+        <Button onClick={handleSubmit} className="ml-auto">
+          <Send className="mr-2 h-4 w-4" />
+          Submit Changes
+        </Button>
+      </CardFooter>
+    </Card>
   )
 }
 
