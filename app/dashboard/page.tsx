@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Ticket, UserCheck, AlertCircle, Clock } from 'lucide-react'
 import { useToast } from "@/components/ui/use-toast"
+import TicketList from '@/components/TicketList'
 
 interface TicketStats {
   totalTickets: number;
@@ -146,6 +147,9 @@ export default function Dashboard() {
               <p className="text-xs text-muted-foreground">Agents currently logged in and available</p>
             </CardContent>
           </Card>
+          <div className="mt-6">
+            <TicketList />
+          </div>
         </div>
       </main>
     </div>
