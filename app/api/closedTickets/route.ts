@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     // Tunggu hingga client MongoDB siap
     const client = await clientPromise;
     const db = client.db("xaena_db");
-    const closedTicketsCollection = db.collection('closedTickets');
+    const closedTicketsCollection = db.collection('closed_tickets');
 
     const closedTicketData = await request.json();
     
@@ -36,7 +36,7 @@ export async function DELETE(request: Request) {
     // Tunggu hingga client MongoDB siap
     const client = await clientPromise;
     const db = client.db("xaena_db");
-    const closedTicketsCollection = db.collection('closedTickets');
+    const closedTicketsCollection = db.collection('closed_tickets');
 
     const { ticketId } = await request.json();
 
@@ -62,7 +62,7 @@ export async function GET() {
   try {
     const client = await clientPromise;
     const db = client.db("xaena_db");
-    const closedTickets = await db.collection('closedTickets').find({}).toArray();
+    const closedTickets = await db.collection('closed_tickets').find({}).toArray();
 
     return NextResponse.json(closedTickets);
   } catch (error) {
