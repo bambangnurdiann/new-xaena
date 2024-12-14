@@ -64,9 +64,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   if (!currentUser) {
     return (
       <html lang="en" suppressHydrationWarning>
-        <body className="bg-background text-foreground">
+        <body>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <main className="flex-1 p-6 bg-background overflow-auto">
+            <main className="flex-1 p-6 bg-background text-foreground">
               {children}
             </main>
           </ThemeProvider>
@@ -77,20 +77,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-background text-foreground">
+      <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <div className="flex flex-col min-h-screen">
+          <div className="flex flex-col min-h-screen bg-background text-foreground">
             <div className="flex flex-1 overflow-hidden">
               <TooltipProvider>
                 <aside
                   className={cn(
-                    "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300 fixed top-0 left-0 h-screen",
+                    "bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))] flex flex-col justify-between transition-all duration-300 fixed top-0 left-0 h-screen",
                     isSidebarOpen ? "w-64" : "w-20"
                   )}
                 >
                   <ScrollArea className="flex-1">
                     <div className="p-4 flex items-center justify-between">
-                      {isSidebarOpen && <span className="font-bold text-lg">New Xaena</span>}
+                      {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
                       <Button variant="ghost" size="icon" onClick={toggleSidebar}>
                         <Menu className="h-6 w-6" />
                       </Button>
@@ -111,13 +111,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </TooltipProvider>
 
               <main className={cn(
-                "flex-1 flex flex-col overflow-hidden transition-all duration-300",
+                "flex-1 flex flex-col overflow-hidden transition-all duration-300 bg-background",
                 isSidebarOpen ? "ml-64" : "ml-20"
               )}>
                 <div className="flex justify-end p-4">
                   <ThemeToggle />
                 </div>
-                <div className="flex-1 overflow-auto p-6">
+                <div className="flex-1 overflow-auto p-6 bg-background">
                   <div className="max-w-7xl mx-auto">
                     {children}
                   </div>
@@ -125,7 +125,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </main>
             </div>
             <Footer className={cn(
-              "bg-secondary text-secondary-foreground text-center py-4 transition-all duration-300",
+              "bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))] text-center py-4 transition-all duration-300",
               isSidebarOpen ? "ml-64" : "ml-20"
             )} />
           </div>
@@ -255,3 +255,4 @@ function ProfileMenu({ userId, isOpen }: { userId: string; isOpen: boolean }) {
     </DropdownMenu>
   );
 }
+
