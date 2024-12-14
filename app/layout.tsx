@@ -79,45 +79,55 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className="bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <div className="flex min-h-screen">
-            <TooltipProvider>
-              <aside
-                className={cn(
-                  "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300",
-                  isSidebarOpen ? "w-64" : "w-20"
-                )}
-              >
-                <ScrollArea className="flex-1">
-                  <div className="p-4 flex items-center justify-between">
-                    {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
-                    <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-                      <Menu className="h-6 w-6" />
-                    </Button>
+          <div className="flex flex-col min-h-screen">
+            <div className="flex flex-1 overflow-hidden">
+              <TooltipProvider>
+                <aside
+                  className={cn(
+                    "bg-secondary text-secondary-foreground flex flex-col justify-between transition-all duration-300 fixed top-0 left-0 h-screen",
+                    isSidebarOpen ? "w-64" : "w-20"
+                  )}
+                >
+                  <ScrollArea className="flex-1">
+                    <div className="p-4 flex items-center justify-between">
+                      {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
+                      <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+                        <Menu className="h-6 w-6" />
+                      </Button>
+                    </div>
+                    <nav className="space-y-2 p-4">
+                      <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
+                      <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
+                      <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
+                      <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
+                      <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
+                    </nav>
+                  </ScrollArea>
+
+                  <div className="p-4">
+                    <ProfileMenu userId={currentUser} isOpen={isSidebarOpen} />
                   </div>
-                  <nav className="space-y-2 p-4">
-                    <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
-                    <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
-                    <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
-                    <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
+                </aside>
+              </TooltipProvider>
 
-                    <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
-                  </nav>
-                </ScrollArea>
-
-                <div className="p-4">
-                  <ProfileMenu userId={currentUser} />
-                </div>
-              </aside>
-            </TooltipProvider>
-
-            <main className="flex-1 p-6 bg-background overflow-auto">
-              <div className="max-w-7xl mx-auto">
-                <div className="flex justify-end mb-4">
+              <main className={cn(
+                "flex-1 flex flex-col overflow-hidden transition-all duration-300",
+                isSidebarOpen ? "ml-64" : "ml-20"
+              )}>
+                <div className="flex justify-end p-4">
                   <ThemeToggle />
                 </div>
-                {children}
-              </div>
-            </main>
+                <div className="flex-1 overflow-auto p-6">
+                  <div className="max-w-7xl mx-auto">
+                    {children}
+                  </div>
+                </div>
+              </main>
+            </div>
+            <Footer className={cn(
+              "bg-secondary text-secondary-foreground text-center py-4 transition-all duration-300",
+              isSidebarOpen ? "ml-64" : "ml-20"
+            )} />
           </div>
         </ThemeProvider>
       </body>
@@ -125,14 +135,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   )
 }
 
+function Footer({ className }: { className?: string }) {
+  return (
+    <footer className={className}>
+      <p>Created by Bambang Nurdiansyah</p>
+    </footer>
+  );
+}
+
 function NavItem({ href, icon: Icon, label, isOpen }: { href: string; icon: React.ElementType; label: string; isOpen: boolean }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" className="w-full justify-start" asChild>
-          <a href={href} className="flex items-center py-2 px-3 rounded-lg">
-            <Icon className="w-5 h-5" />
-            {isOpen && <span className="ml-3">{label}</span>}
+        <Button 
+          variant="ghost" 
+          className={cn(
+            "w-full justify-start transition-all duration-200 hover:bg-primary hover:text-primary-foreground",
+            isOpen ? "px-3" : "px-0"
+          )} 
+          asChild
+        >
+          <a href={href} className="flex items-center py-2 rounded-lg">
+            <Icon className={cn("w-5 h-5", isOpen ? "mr-3" : "mx-auto")} />
+            {isOpen && <span>{label}</span>}
           </a>
         </Button>
       </TooltipTrigger>
@@ -143,7 +168,7 @@ function NavItem({ href, icon: Icon, label, isOpen }: { href: string; icon: Reac
   )
 }
 
-function ProfileMenu({ userId }: { userId: string }) {
+function ProfileMenu({ userId, isOpen }: { userId: string; isOpen: boolean }) {
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -153,13 +178,12 @@ function ProfileMenu({ userId }: { userId: string }) {
       });
   
       if (response.ok) {
-        // Clear local state and redirect to login
         localStorage.removeItem('currentUser');
         router.push('/login');
         toast({
           title: 'Logged out',
           description: 'You have been successfully logged out.',
-          duration: 3000, // Optional: duration in milliseconds
+          duration: 3000,
         });
       } else {
         const errorData = await response.json();
@@ -179,20 +203,27 @@ function ProfileMenu({ userId }: { userId: string }) {
     }
   };
 
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="w-full justify-start p-0">
-          <div className="flex items-center space-x-3">
+        <Button variant="ghost" className={cn(
+          "w-full justify-start p-0 transition-all duration-300",
+          isOpen ? "" : "px-0"
+        )}>
+          <div className={cn(
+            "flex items-center space-x-3",
+            isOpen ? "" : "justify-center"
+          )}>
             <Avatar className="w-10 h-10">
               <AvatarImage src="/profile.png" alt="Profile" />
               <AvatarFallback>{userId.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
-            <div className="text-left">
-              <p className="font-medium">User ID: {userId}</p>
-              <p className="text-xs text-muted-foreground">View profile</p>
-            </div>
+            {isOpen && (
+              <div className="text-left">
+                <p className="font-medium">User ID: {userId}</p>
+                <p className="text-xs text-muted-foreground">View profile</p>
+              </div>
+            )}
           </div>
         </Button>
       </DropdownMenuTrigger>
@@ -224,15 +255,3 @@ function ProfileMenu({ userId }: { userId: string }) {
     </DropdownMenu>
   );
 }
-
-
-
-function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
-  return (
-    <span
-      className={cn("ml-auto text-xs tracking-widest text-muted-foreground", className)}
-      {...props}
-    />
-  )
-}
-
