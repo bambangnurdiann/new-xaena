@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast, useToast } from "@/components/ui/use-toast"
+import { AnimatePresence, motion } from 'framer-motion'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -84,7 +85,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <TooltipProvider>
                 <aside
                   className={cn(
-                    "bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))] flex flex-col justify-between transition-all duration-300 fixed top-0 left-0 h-screen",
+                    "bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))] flex flex-col justify-between transition-all duration-300 fixed top-0 left-0 h-screen shadow-md",
                     isSidebarOpen ? "w-64" : "w-20"
                   )}
                 >
@@ -96,11 +97,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       </Button>
                     </div>
                     <nav className="space-y-2 p-4">
-                      <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} />
-                      <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
-                      <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
-                      <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
-                      <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
+                      <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} isActive={pathname === '/home'} />
+                      <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} isActive={pathname === '/dashboard'} />
+                      <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} isActive={pathname === '/my-inbox'} />
+                      <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} isActive={pathname === '/admin/upload-tickets'} />
+                      <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} isActive={pathname === '/ticket-log'} />
                     </nav>
                   </ScrollArea>
 
@@ -117,11 +118,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <div className="flex justify-end p-4">
                   <ThemeToggle />
                 </div>
-                <div className="flex-1 overflow-auto p-6 bg-background">
-                  <div className="max-w-7xl mx-auto">
-                    {children}
-                  </div>
-                </div>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={pathname}
+                    className="flex-1 overflow-auto p-6 bg-background"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <div className="max-w-7xl mx-auto">
+                      {children}
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
               </main>
             </div>
             <Footer />
@@ -143,7 +153,7 @@ function Footer({ className }: { className?: string }) {
   );
 }
 
-function NavItem({ href, icon: Icon, label, isOpen }: { href: string; icon: React.ElementType; label: string; isOpen: boolean }) {
+function NavItem({ href, icon: Icon, label, isOpen, isActive }: { href: string; icon: React.ElementType; label: string; isOpen: boolean; isActive: boolean }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -151,7 +161,8 @@ function NavItem({ href, icon: Icon, label, isOpen }: { href: string; icon: Reac
           variant="ghost" 
           className={cn(
             "w-full justify-start transition-all duration-200 hover:bg-primary hover:text-primary-foreground",
-            isOpen ? "px-3" : "px-0"
+            isOpen ? "px-3" : "px-0",
+            isActive && "nav-item-active"
           )} 
           asChild
         >
@@ -234,7 +245,7 @@ function ProfileMenu({ userId, isOpen }: { userId: string; isOpen: boolean }) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        
+       
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
