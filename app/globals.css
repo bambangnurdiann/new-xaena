@@ -4,9 +4,30 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
+html, body {
+  height: 100%; /* Ensure full viewport height */
+  margin: 0;
+  padding: 0;
+}
+
+main {
+  overflow: auto; /* Prevent unwanted scrollbars */
+  height: 100%; /* Take full height */
+}
+
 body {
   font-family: 'Poppins', sans-serif;
 }
+
+aside {
+  width: 16rem; /* Default sidebar width */
+  transition: width 0.3s ease;
+}
+
+aside.collapsed {
+  width: 4rem; /* Collapsed sidebar width */
+}
+
 
 @layer utilities {
   .text-balance {
