@@ -22,6 +22,18 @@ import {
 import { toast, useToast } from "@/components/ui/use-toast"
 import { AnimatePresence, motion } from 'framer-motion'
 
+// Peta judul halaman berdasarkan path
+const pageTitles: Record<string, string> = {
+  '/home': 'Home',
+  '/dashboard': 'Dashboard',
+  '/ticket-log': 'Ticket Log', // Judul untuk halaman Ticket Log
+  '/my-inbox': 'My Inbox',
+  '/admin/upload-tickets': 'Upload Tickets',
+  // Tambahkan path lainnya di sini
+}
+
+
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [currentUser, setCurrentUser] = useState<string | null>(null)
@@ -48,6 +60,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       localStorage.removeItem('currentUser')
     }
   }
+
+  useEffect(() => {
+    const pageTitle = pageTitles[pathname ?? ''] || 'New Xaena'
+    document.title = pageTitle
+  }, [pathname])
 
   useEffect(() => {
     const checkCurrentUser = () => {
@@ -91,7 +108,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 >
                   <ScrollArea className="flex-1">
                     <div className="p-4 flex items-center justify-between">
-                      {isSidebarOpen && <span className="font-bold text-lg">New Xaena</span>}
+                      {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
                       <Button variant="ghost" size="icon" onClick={toggleSidebar}>
                         <Menu className="h-6 w-6" />
                       </Button>
@@ -245,7 +262,18 @@ function ProfileMenu({ userId, isOpen }: { userId: string; isOpen: boolean }) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-       
+        <DropdownMenuItem>
+          <User className="mr-2 h-4 w-4" />
+          <span>Profile</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Lock className="mr-2 h-4 w-4" />
+          <span>Change Password</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Shield className="mr-2 h-4 w-4" />
+          <span>Activate 2FA</span>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
