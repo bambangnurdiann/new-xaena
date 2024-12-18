@@ -28,6 +28,19 @@ export async function POST(request: Request) {
     const ticketLogCollection = db.collection("ticketLog");
     const usersCollection = db.collection("login_user");
 
+        // Periksa apakah user sedang "Working"
+        const user = await usersCollection.findOne({ username });
+        if (!user) {
+          return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+    
+        if (!user.isWorking) {
+          console.warn(`User ${username} is not working. No tickets will be distributed.`);
+          return NextResponse.json({ message: 'User is not working' });
+        }
+    
+        console.log(`User ${username} is working. Proceeding with ticket distribution.`);
+
     // Fetch all tickets from the database
     const ticketsFromDb: WithId<Document>[] = await ticketsCollection.find({ status: { $ne: 'Completed' } }).toArray();
     const tickets: Ticket[] = ticketsFromDb.map(doc => ({
@@ -62,6 +75,8 @@ export async function POST(request: Request) {
         assignedTickets.push(ticket);
       }
     });
+
+    console.log(`Assigned tickets to user ${username}:`, assignedTickets);
 
     // Fetch tickets processed by the user
     const userProcessedTickets = await ticketLogCollection
