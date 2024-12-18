@@ -72,6 +72,8 @@ export default function MyInbox() {
     }
   }, [toast])
 
+  
+
   const fetchNextTicketHandler = useCallback(async () => {
     try {
       if (!isWorking) {
@@ -272,6 +274,10 @@ export default function MyInbox() {
       if (!statusUpdateResponse.ok) {
         throw new Error('Failed to update working status');
       }
+
+          // Successfully updated on the server, set local state
+    setIsWorking(true);
+    sessionStorage.setItem('isWorking', 'true');
   
       const response = await fetch('/api/ticketDistribution', {
         method: 'POST',
@@ -297,6 +303,11 @@ export default function MyInbox() {
       }
     } catch (error) {
       console.error('Error during ticket distribution:', error);
+
+    // Reset working state on failure
+    setIsWorking(false);
+    sessionStorage.setItem('isWorking', 'false');
+      
       toast({
         title: "Error",
         description: "An error occurred while starting to work. Please try again.",
@@ -347,40 +358,80 @@ export default function MyInbox() {
 
   const handleLogout = useCallback(async () => {
     try {
+      // Reset isWorking to false before logging out
+      await fetch('/api/updateUserStatus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loggedInUsername, isWorking: false }),
+      });
+  
+      // Perform logout
       const response = await fetch('/api/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-      })
-
+      });
+  
       if (response.ok) {
-        sessionStorage.removeItem('currentTicket')
-        setCurrentTicket(null)
-        setIsWorking(false)
-        setIsPaused(false)
-        setPauseReason('')
-        setPauseDuration(0)
-        setWorkingDuration(0)
-        setLoggedInUsername(null)
-        document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
-        router.push('/login')
+        sessionStorage.removeItem('currentTicket');
+        setCurrentTicket(null);
+        setIsWorking(false);
+        setIsPaused(false);
+        setPauseReason('');
+        setPauseDuration(0);
+        setWorkingDuration(0);
+        setLoggedInUsername(null);
+        document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        router.push('/login');
       } else {
-        const errorData = await response.json()
-        console.error('Logout failed:', errorData.error)
+        const errorData = await response.json();
+        console.error('Logout failed:', errorData.error);
         toast({
-          title: "Logout Error",
-          description: "Failed to log out. Please try again later.",
-          variant: "destructive",
-        })
+          title: 'Logout Error',
+          description: 'Failed to log out. Please try again later.',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
-      console.error('Error during logout:', error)
+      console.error('Error during logout:', error);
       toast({
-        title: "Logout Error",
-        description: "An error occurred while logging out. Please check your connection.",
-        variant: "destructive",
-      })
+        title: 'Logout Error',
+        description: 'An error occurred while logging out. Please check your connection.',
+        variant: 'destructive',
+      });
     }
-  }, [router, toast])
+  }, [loggedInUsername, router, toast]);
+  
+
+  useEffect(() => {
+    let activityTimeout: NodeJS.Timeout;
+  
+    const resetTimer = () => {
+      clearTimeout(activityTimeout);
+  
+      // Set inactivity timeout to 30 minutes
+      activityTimeout = setTimeout(async () => {
+        console.log("User inactive for 30 minutes. Logging out...");
+        await fetch('/api/updateUserStatus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: loggedInUsername, isWorking: false }),
+        });
+        handleLogout(); // Log out the user
+      }, 30 * 60 * 1000);
+    };
+  
+    // Add event listeners for user activity
+    window.addEventListener('mousemove', resetTimer);
+    window.addEventListener('keydown', resetTimer);
+  
+    resetTimer(); // Start the timer initially
+  
+    return () => {
+      clearTimeout(activityTimeout);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keydown', resetTimer);
+    };
+  }, [loggedInUsername, handleLogout]);
 
   const handleReasonChange = useCallback((value: string) => setPauseReason(value), [])
 
