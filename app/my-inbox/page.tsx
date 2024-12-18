@@ -372,7 +372,7 @@ export default function MyInbox() {
       });
   
       if (response.ok) {
-        sessionStorage.removeItem('currentTicket');
+        sessionStorage.clear(); // Clear all session storage
         setCurrentTicket(null);
         setIsWorking(false);
         setIsPaused(false);
@@ -380,8 +380,12 @@ export default function MyInbox() {
         setPauseDuration(0);
         setWorkingDuration(0);
         setLoggedInUsername(null);
-        document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        router.push('/login');
+  
+        // Clear the cookies
+        document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'; 
+        document.cookie = 'lastActiveTime=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+  
+        router.push('/login'); // Redirect to login page
       } else {
         const errorData = await response.json();
         console.error('Logout failed:', errorData.error);
@@ -401,6 +405,7 @@ export default function MyInbox() {
     }
   }, [loggedInUsername, router, toast]);
   
+  
 
   useEffect(() => {
     let activityTimeout: NodeJS.Timeout;
@@ -410,7 +415,7 @@ export default function MyInbox() {
   
       // Set inactivity timeout to 30 minutes
       activityTimeout = setTimeout(async () => {
-        console.log("User inactive for 30 minutes. Logging out...");
+        console.log('User inactive for 30 minutes. Logging out...');
         await fetch('/api/updateUserStatus', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -432,6 +437,7 @@ export default function MyInbox() {
       window.removeEventListener('keydown', resetTimer);
     };
   }, [loggedInUsername, handleLogout]);
+  
 
   const handleReasonChange = useCallback((value: string) => setPauseReason(value), [])
 
