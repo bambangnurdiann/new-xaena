@@ -43,28 +43,58 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const fetchCurrentUser = async () => {
     try {
-      const response = await fetch('/api/checkLoggedInUsers')
+      const response = await fetch('/api/checkLoggedInUsers', {
+        credentials: 'include', // Pastikan cookies disertakan
+      });
+  
       if (response.ok) {
-        const data = await response.json()
-        if (data.userId) {
-          setCurrentUser(data.userId)
-          localStorage.setItem('currentUser', JSON.stringify(data.userId))
+        const data = await response.json();
+  
+        if (data.loggedInUsers && data.loggedInUsers.length > 0) {
+          const loggedInUser = data.loggedInUsers[0]; // Ambil user pertama dari list (jika ada)
+          setCurrentUser(loggedInUser);
+          localStorage.setItem('currentUser', JSON.stringify(loggedInUser));
         } else {
-          setCurrentUser(null)
-          localStorage.removeItem('currentUser')
+          // Jika tidak ada user yang login
+          setCurrentUser(null);
+          localStorage.removeItem('currentUser');
         }
+      } else if (response.status === 401) {
+        console.warn('Session expired or unauthorized.');
+        setCurrentUser(null);
+        localStorage.removeItem('currentUser');
+      } else {
+        console.error('Failed to fetch user with unexpected status:', response.status);
+        setCurrentUser(null);
+        localStorage.removeItem('currentUser');
       }
     } catch (error) {
-      console.error('Error fetching current user:', error)
-      setCurrentUser(null)
-      localStorage.removeItem('currentUser')
+      console.error('Error fetching current user:', error);
+      setCurrentUser(null);
+      localStorage.removeItem('currentUser');
     }
-  }
-
+  };
+  
+  
   useEffect(() => {
     const pageTitle = pageTitles[pathname ?? ''] || 'New Xaena'
     document.title = pageTitle
   }, [pathname])
+
+  useEffect(() => {
+    const resetIsWorking = async () => {
+      if (currentUser) {
+        await fetch('/api/updateUserStatus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: currentUser, isWorking: false }),
+        });
+      }
+    };
+  
+    resetIsWorking();
+  }, [currentUser]);
+  
 
   useEffect(() => {
     const checkCurrentUser = () => {
@@ -201,6 +231,17 @@ function ProfileMenu({ userId, isOpen }: { userId: string; isOpen: boolean }) {
 
   const handleLogout = async () => {
     try {
+      // Reset `isWorking` status to `false`
+      const currentUser = localStorage.getItem('currentUser');
+      if (currentUser) {
+        await fetch('/api/updateUserStatus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: JSON.parse(currentUser), isWorking: false }),
+        });
+      }
+  
+      // Perform logout
       const response = await fetch('/api/logout', {
         method: 'POST',
       });
@@ -230,6 +271,7 @@ function ProfileMenu({ userId, isOpen }: { userId: string; isOpen: boolean }) {
       });
     }
   };
+  
 
   return (
     <DropdownMenu>
