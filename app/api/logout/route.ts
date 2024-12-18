@@ -20,8 +20,12 @@ export async function POST() {
     const result = await usersCollection.updateOne(
       { sessionToken },
       {
-        $set: { loggedIn: false, lastLogoutTime: new Date() },
-        $unset: { sessionToken: '' },
+        $set: { 
+          loggedIn: false, 
+          lastLogoutTime: new Date(),
+          isWorking: false, // Reset isWorking to false on logout
+        },
+        $unset: { sessionToken: '' }, // Remove sessionToken
       }
     );
 
