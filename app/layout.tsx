@@ -1,7 +1,7 @@
 'use client'
 
 import './globals.css'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Home, LayoutDashboard, Ticket, Users, LogOut, Lock, Shield, User, Menu } from 'lucide-react'
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { toast, useToast } from "@/components/ui/use-toast"
 import { AnimatePresence, motion } from 'framer-motion'
+import router from 'next/router'
 
 // Peta judul halaman berdasarkan path
 const pageTitles: Record<string, string> = {
@@ -44,25 +45,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const fetchCurrentUser = async () => {
     try {
       const response = await fetch('/api/checkLoggedInUsers', {
-        credentials: 'include', // Pastikan cookies disertakan
+        credentials: 'include',
       });
-  
+
       if (response.ok) {
         const data = await response.json();
-  
+
         if (data.loggedInUsers && data.loggedInUsers.length > 0) {
-          const loggedInUser = data.loggedInUsers[0]; // Ambil user pertama dari list (jika ada)
+          const loggedInUser = data.loggedInUsers[0];
           setCurrentUser(loggedInUser);
           localStorage.setItem('currentUser', JSON.stringify(loggedInUser));
         } else {
-          // Jika tidak ada user yang login
           setCurrentUser(null);
           localStorage.removeItem('currentUser');
         }
       } else if (response.status === 401) {
         console.warn('Session expired or unauthorized.');
-        setCurrentUser(null);
-        localStorage.removeItem('currentUser');
+        handleAutoLogout();
       } else {
         console.error('Failed to fetch user with unexpected status:', response.status);
         setCurrentUser(null);
@@ -75,39 +74,73 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     }
   };
   
-  
-  useEffect(() => {
-    const pageTitle = pageTitles[pathname ?? ''] || 'New Xaena'
-    document.title = pageTitle
-  }, [pathname])
+  const handleAutoLogout = useCallback(async () => {
+    try {
+      await fetch('/api/updateUserStatus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: currentUser, isWorking: false }),
+      });
+
+      // Perform logout
+      await fetch('/api/logout', {
+        method: 'POST',
+      });
+
+      localStorage.removeItem('currentUser');
+      setCurrentUser(null);
+      toast({
+        title: 'Logged out',
+        description: 'You have been logged out due to inactivity.',
+        duration: 3000,
+      });
+      router.push('/login');
+    } catch (error) {
+      console.error('Error during auto logout:', error);
+    }
+  }, [currentUser, router, toast]);
 
   useEffect(() => {
-    const resetIsWorking = async () => {
-      if (currentUser) {
-        await fetch('/api/updateUserStatus', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: currentUser, isWorking: false }),
-        });
-      }
+    const pageTitle = pageTitles[pathname ?? ''] || 'New Xaena';
+    document.title = pageTitle;
+  }, [pathname]);
+
+  useEffect(() => {
+    let activityTimeout: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      clearTimeout(activityTimeout);
+      activityTimeout = setTimeout(() => {
+        console.log('User inactive for 30 minutes. Logging out...');
+        handleAutoLogout();
+      }, 30 * 60 * 1000); // 30 minutes
     };
-  
-    resetIsWorking();
-  }, [currentUser]);
-  
+
+    // Add event listeners for user activity
+    window.addEventListener('mousemove', resetTimer);
+    window.addEventListener('keydown', resetTimer);
+
+    resetTimer(); // Start the timer initially
+
+    return () => {
+      clearTimeout(activityTimeout);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keydown', resetTimer);
+    };
+  }, [handleAutoLogout]);
 
   useEffect(() => {
     const checkCurrentUser = () => {
-      const storedUser = localStorage.getItem('currentUser')
+      const storedUser = localStorage.getItem('currentUser');
       if (storedUser) {
-        setCurrentUser(JSON.parse(storedUser))
+        setCurrentUser(JSON.parse(storedUser));
       } else {
-        fetchCurrentUser()
+        fetchCurrentUser();
       }
-    }
+    };
 
-    checkCurrentUser()
-  }, [pathname])
+    checkCurrentUser();
+  }, [pathname]);
 
   if (!currentUser) {
     return (
@@ -121,7 +154,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </body>
       </html>
     );
-  }  
+  }
 
   return (
     <html lang="en" suppressHydrationWarning>
