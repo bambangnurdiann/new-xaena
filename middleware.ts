@@ -12,12 +12,13 @@ export async function middleware(request: NextRequest) {
   ];
 
   if (!sessionToken) {
-    // Redirect unauthenticated users trying to access protected pages
+    // Redirect only if the user is accessing protected pages
     if (protectedPages.some(page => request.nextUrl.pathname.startsWith(page))) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
     return NextResponse.next();
   }
+  
 
   // Check for idle timeout
   const response = NextResponse.next();
@@ -42,12 +43,13 @@ export async function middleware(request: NextRequest) {
     path: '/',
   });
 
-  // Redirect already authenticated users away from login
+  // Avoid redirect loop on login page
   if (request.nextUrl.pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    // If token exists but expired or invalid, clear cookies
+    const response = NextResponse.next();
+    response.cookies.set('session_token', '', { maxAge: 0, path: '/' }); // Clear invalid token
+    return response; // Let user access login page
   }
-
-  return response;
 }
 
 export const config = {
