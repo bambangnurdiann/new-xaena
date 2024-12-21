@@ -38,7 +38,7 @@ export default function TicketList() {
 
   const fetchTickets = useCallback(async () => {
     try {
-      const response = await fetch('/api/tickets', {
+      const response = await fetch('/api/tickets?view=dashboard', {
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
@@ -73,14 +73,14 @@ export default function TicketList() {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
+      case 'active':
+        return 'bg-green-500 text-white'
+      case 'pending':
+        return 'bg-yellow-500 text-white'
       case 'open':
-        return 'bg-yellow-500'
-      case 'in progress':
-        return 'bg-blue-500'
-      case 'completed':
-        return 'bg-green-500'
+        return 'bg-gray-500 text-white'
       default:
-        return 'bg-gray-500'
+        return 'bg-gray-500 text-white'
     }
   }
 
@@ -285,3 +285,4 @@ export default function TicketList() {
     </Card>
   )
 }
+
