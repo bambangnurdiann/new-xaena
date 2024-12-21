@@ -12,6 +12,8 @@ export interface Ticket {
   'Detail Case'?: string;
   Analisa?: string;
   'Escalation Level'?: string;
+  closedAt?: number;
+  action?: string;
 }
   
 // Helper functions moved to separate file
@@ -86,5 +88,3 @@ export function getWIBTime(): string {
   
     return false;
   }
-  
-  
