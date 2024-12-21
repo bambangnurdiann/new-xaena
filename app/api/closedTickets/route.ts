@@ -3,61 +3,78 @@ export const dynamic = 'force-dynamic'; // Ensure dynamic route processing
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 
+// POST to add closed ticket to MongoDB
 export async function POST(request: Request) {
   try {
-    // Tunggu hingga client MongoDB siap
     const client = await clientPromise;
     const db = client.db("xaena_db");
     const closedTicketsCollection = db.collection('closed_tickets');
+    const ticketsCollection = db.collection('tickets');
 
-    const closedTicketData = await request.json();
-    
-    // Validasi data tiket yang ditutup
-    if (!closedTicketData.ticketId || !closedTicketData.action || !closedTicketData.details) {
-      return NextResponse.json({ error: 'Missing required fields: ticketId, action, or details' }, { status: 400 });
+    // Get and log the incoming request payload to verify it
+    const { tickets } = await request.json();
+    console.log("Received Tickets to Close:", tickets);
+
+    // Validate each ticket in the array
+    for (const ticket of tickets) {
+      if (!ticket.Incident || !ticket.action || !ticket.details) {
+        return NextResponse.json({
+          error: 'Missing required fields: Incident, action, or details',
+        }, { status: 400 });
+      }
     }
 
-    // Masukkan data tiket yang ditutup ke dalam koleksi closedTickets
-    await closedTicketsCollection.insertOne({
-      ...closedTicketData,
-      closedAt: new Date(), // Tanggal dan waktu tiket ditutup
+    // Insert the tickets into the closed_tickets collection
+    await closedTicketsCollection.insertMany(
+      tickets.map((ticket: { closedAt: string | number | Date; }) => ({
+        ...ticket,
+        closedAt: new Date(ticket.closedAt), // Ensure closedAt is a Date object
+      }))
+    );
+
+    // Now remove the closed tickets from the `tickets` collection
+    const incidentIds = tickets.map((ticket: { Incident: any; }) => ticket.Incident);
+    await ticketsCollection.deleteMany({
+      Incident: { $in: incidentIds },
     });
 
-    return NextResponse.json({ message: 'Ticket closed and saved successfully' });
+    return NextResponse.json({ message: 'Tickets closed and saved successfully' });
   } catch (error) {
-    console.error('Error saving closed ticket:', error);
+    console.error('Error saving closed tickets:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// DELETE untuk Menghapus Tiket yang sudah ditutup berdasarkan ticketId
+
+// DELETE to remove a closed ticket by Incident
 export async function DELETE(request: Request) {
   try {
-    // Tunggu hingga client MongoDB siap
+    // Wait for MongoDB client connection
     const client = await clientPromise;
     const db = client.db("xaena_db");
     const closedTicketsCollection = db.collection('closed_tickets');
 
-    const { ticketId } = await request.json();
+    const { Incident } = await request.json();
 
-    if (!ticketId) {
-      return NextResponse.json({ error: 'Missing required field: ticketId' }, { status: 400 });
+    if (!Incident) {
+      return NextResponse.json({ error: 'Missing required field: Incident' }, { status: 400 });
     }
 
-    const result = await closedTicketsCollection.deleteOne({ ticketId });
+    // Remove the ticket from closedTickets collection
+    const result = await closedTicketsCollection.deleteOne({ Incident });
 
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: 'Closed ticket not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ message: `Closed ticket with ticketId ${ticketId} deleted successfully` });
+    return NextResponse.json({ message: `Closed ticket with Incident ${Incident} deleted successfully` });
   } catch (error) {
     console.error('Error deleting closed ticket:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// GET untuk Mengambil Semua Tiket yang sudah ditutup
+// GET to retrieve all closed tickets
 export async function GET() {
   try {
     const client = await clientPromise;
