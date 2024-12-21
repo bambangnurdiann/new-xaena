@@ -87,4 +87,8 @@ export function getWIBTime(): string {
     if (category === 'K3' && ttrInMinutes > 60) return true;
   
     return false;
+<<<<<<< HEAD
   }
+=======
+  }
+>>>>>>> f346677 (Fix Bug)
