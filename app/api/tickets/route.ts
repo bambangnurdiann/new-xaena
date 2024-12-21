@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     const view = searchParams.get('view');
 
     const client = await clientPromise;
-    const db = client.db('xaena_debug');
+    const db = client.db('xaena_db');
     const ticketsCollection = db.collection('tickets');
     const closedTicketsCollection = db.collection('closed_tickets');
 
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     const TIMEOUT = 8000; // 8 seconds to allow for response time
 
     const client = await clientPromise;
-    const db = client.db('xaena_debug');
+    const db = client.db('xaena_db');
     const ticketsCollection = db.collection('tickets');
     const closedTicketsCollection = db.collection('closed_tickets');
 
