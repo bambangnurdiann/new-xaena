@@ -415,7 +415,7 @@ export default function MyInbox() {
   
       // Set inactivity timeout to 30 minutes
       activityTimeout = setTimeout(async () => {
-        console.log('User inactive for 30 minutes. Logging out...');
+        console.log("User inactive for 30 minutes. Logging out...");
         await fetch('/api/updateUserStatus', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -437,7 +437,6 @@ export default function MyInbox() {
       window.removeEventListener('keydown', resetTimer);
     };
   }, [loggedInUsername, handleLogout]);
-  
 
   const handleReasonChange = useCallback((value: string) => setPauseReason(value), [])
 
