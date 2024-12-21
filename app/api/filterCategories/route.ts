@@ -9,6 +9,7 @@ interface Ticket {
   TTR: string;
   category?: string;
   level?: string;
+  lastUpdated?: string;
 }
 
 export async function POST(request: Request) {
@@ -23,7 +24,12 @@ export async function POST(request: Request) {
     const filterCategoryCollection = db.collection("filter_kategori");
     console.log('Using collection: filter_kategori');
 
-    const categorizedTickets = await Promise.all(tickets.map(async (ticket: Ticket) => {
+    const currentTime = new Date().toISOString(); // Waktu sekarang dalam format ISO
+
+    const categorizedTickets = await Promise.all(
+      tickets.map(async (ticket: Partial<Ticket>) => {
+        const TTR = ticket.TTR || "00:00";
+        const defaultLastUpdated = ticket.lastUpdated || currentTime;
       // Step 1: Check SID in filter_kategori collection
       const categoryDoc = await filterCategoryCollection.findOne({ SID: ticket.SID });
 
@@ -31,6 +37,7 @@ export async function POST(request: Request) {
         console.log(`SID ${ticket.SID} found in database with category:`, categoryDoc.KATEGORI);
         return {
           ...ticket,
+          lastUpdated: defaultLastUpdated, // Tambahkan lastUpdated
           category: categoryDoc.KATEGORI,
         };
       } else {
@@ -41,23 +48,23 @@ export async function POST(request: Request) {
         };
         
         // Apply K3-specific logic
-        const [hours, minutes] = ticket.TTR.split(':').map(Number);
-        const ttrInMinutes = hours * 60 + minutes;
-        
-        if (ttrInMinutes > 60) {
-          updatedTicket.level = 'L2';
-        } else if (ttrInMinutes > 30) {
-          updatedTicket.level = 'L1';
-        }
+        const [hours, minutes] = TTR.split(':').map(Number);
+        const ttrInMinutes = (hours || 0) * 60 + (minutes || 0);
+         
+         if (ttrInMinutes > 60) {
+           updatedTicket.level = 'L2';
+         } else if (ttrInMinutes > 30) {
+           updatedTicket.level = 'L1';
+         }
 
-        return updatedTicket;
-      }
-    }));
+         return updatedTicket;
+       }
+     }));
+
 
     console.log('Categorized tickets:', categorizedTickets);
     return NextResponse.json(categorizedTickets);
   } catch (error) {
     console.error('Error categorizing tickets:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
+  }}
