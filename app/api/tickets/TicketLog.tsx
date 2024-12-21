@@ -13,6 +13,8 @@ import { CalendarIcon } from 'lucide-react';
 import { format } from "date-fns";
 
 interface Ticket {
+  timestamp: string | number | Date;
+  action: string;
   Incident: string;
   assignedTo?: string;
   status?: string;
@@ -21,6 +23,7 @@ interface Ticket {
   Analisa?: string;
   'Escalation Level'?: string;
   level?: string;
+  closedAt?: string;
 }
 
 export default function TicketLog() {
@@ -39,39 +42,22 @@ export default function TicketLog() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/tickets');
+      const formattedDate = format(date, 'yyyy-MM-dd');
+      const response = await fetch(`/api/tickets?view=log&date=${formattedDate}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch ticket logs: ${response.status} ${response.statusText}`);
       }
       const data = await response.json();
 
-      const startOfDay = new Date(date.setHours(0, 0, 0, 0)).getTime();
-      const endOfDay = new Date(date.setHours(23, 59, 59, 999)).getTime();
+      const processedLogs: Ticket[] = data.map((ticket: Ticket) => ({
+        ...ticket,
+        username: ticket.assignedTo || "N/A",
+        timestamp: ticket.lastUpdated || ticket.closedAt || "Unknown",
+        action: ticket.closedAt ? "Closed" : ticket.status || "N/A",
+      }));
 
-      const filteredLogs: Ticket[] = data
-        .filter((ticket: Ticket) => {
-          const ticketTime = new Date(ticket.lastUpdated || '').getTime();
-          return (
-            ticket.status === 'Completed' &&
-            ticketTime >= startOfDay &&
-            ticketTime <= endOfDay
-          );
-        })
-        .map((ticket: Ticket) => ({
-          ...ticket,
-          username: ticket.assignedTo || "N/A",
-          timestamp: ticket.lastUpdated || "Unknown",
-          action: ticket.status || "N/A",
-          details: {
-            'Detail Case': ticket['Detail Case'] || "N/A",
-            Analisa: ticket.Analisa || "N/A",
-            'Escalation Level': ticket['Escalation Level'] || "N/A",
-            status: ticket.status || "N/A",
-          },
-        }));
-
-      setLogEntries(filteredLogs);
-      setFilteredEntries(filteredLogs);
+      setLogEntries(processedLogs);
+      setFilteredEntries(processedLogs);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
       console.error('Error fetching ticket logs:', errorMessage);
@@ -103,8 +89,8 @@ export default function TicketLog() {
   }, [searchTerm, logEntries]);
 
   const sortedEntries = [...filteredEntries].sort((a, b) => {
-    const dateA = new Date(a.lastUpdated || '').getTime();
-    const dateB = new Date(b.lastUpdated || '').getTime();
+    const dateA = new Date(a.lastUpdated || a.closedAt || '').getTime();
+    const dateB = new Date(b.lastUpdated || b.closedAt || '').getTime();
     return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
   });
 
@@ -192,23 +178,25 @@ export default function TicketLog() {
                   <TableHead>Timestamp</TableHead>
                   <TableHead>Incident</TableHead>
                   <TableHead>User</TableHead>
-                  <TableHead>Action</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Details</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedEntries.map((entry, index) => (
                   <TableRow key={index}>
-                    <TableCell>{new Date(entry.lastUpdated!).toLocaleString()}</TableCell>
+                    <TableCell>{new Date(entry.timestamp).toLocaleString()}</TableCell>
                     <TableCell>{entry.Incident}</TableCell>
                     <TableCell>{entry.assignedTo || "N/A"}</TableCell>
-                    <TableCell>{entry.status || "N/A"}</TableCell>
+                    <TableCell>{entry.action}</TableCell>
                     <TableCell>
-                      {entry['Detail Case'] || entry.Analisa || entry['Escalation Level'] ? (
+                      {entry['Detail Case'] || entry.Analisa || entry['Escalation Level'] || entry.level ? (
                         <ul>
                           {entry['Detail Case'] && <li><strong>Detail Case:</strong> {entry['Detail Case']}</li>}
                           {entry.Analisa && <li><strong>Analisa:</strong> {entry.Analisa}</li>}
                           {entry['Escalation Level'] && <li><strong>Escalation Level:</strong> {entry['Escalation Level']}</li>}
+                          {entry.level && <li><strong>Level:</strong> {entry.level}</li>}
+                          {entry.closedAt && <li><strong>Closed At:</strong> {new Date(entry.closedAt).toLocaleString()}</li>}
                         </ul>
                       ) : (
                         'No details available'
@@ -239,3 +227,4 @@ export default function TicketLog() {
     </Card>
   );
 }
+
