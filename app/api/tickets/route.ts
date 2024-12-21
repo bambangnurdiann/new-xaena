@@ -1,11 +1,9 @@
-export const dynamic = 'force-dynamic'; // Ensure dynamic route processing
+export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
-import { shouldCloseTicket } from '@/utils/ticketHelpers';
 import { WithId, Document } from 'mongodb';
 
-// Helper functions moved to utils to keep route handler focused
 import {
   Ticket,
   getWIBTime,
@@ -14,29 +12,33 @@ import {
   assignLevelBasedOnTTR,
 } from '@/utils/ticketHelpers';
 
-//interface Ticket {
- // Incident: string;
- // assignedTo?: string;
- // lastAssignedTime?: number;
- // status?: string;
- // SID?: string;
-  //TTR: string;
-  //category?: string;
-  //level?: string;
-  //lastUpdated?: string;
-  //'Detail Case'?: string;
-  //Analisa?: string;
-  //'Escalation Level'?: string;
-//}
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const client = await clientPromise;
-    const db = client.db('xaena_db');
-    const ticketsCollection = db.collection('tickets');
+    const { searchParams } = new URL(request.url);
+    const view = searchParams.get('view');
 
-    const tickets = await ticketsCollection.find({}).toArray();
-    return NextResponse.json(tickets);
+    const client = await clientPromise;
+    const db = client.db('xaena_debug');
+    const ticketsCollection = db.collection('tickets');
+    const closedTicketsCollection = db.collection('closed_tickets');
+
+    if (view === 'dashboard') {
+      // Hanya mengambil tiket yang belum selesai (status bukan 'Completed' atau 'Closed')
+      const tickets = await ticketsCollection.find({
+        status: { $nin: ['Completed', 'Closed'] }
+      }).toArray();
+      return NextResponse.json(tickets);
+    } else if (view === 'log') {
+      const [completedTickets, closedTickets] = await Promise.all([
+        ticketsCollection.find({ status: { $in: ['Completed', 'Closed'] } }).toArray(),
+        closedTicketsCollection.find({}).toArray()
+      ]);
+
+      const allCompletedTickets = [...completedTickets, ...closedTickets];
+      return NextResponse.json(allCompletedTickets);
+    }
+
+    return NextResponse.json({ error: 'Invalid view parameter' }, { status: 400 });
   } catch (error) {
     console.error('Error fetching tickets:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
     const TIMEOUT = 8000; // 8 seconds to allow for response time
 
     const client = await clientPromise;
-    const db = client.db('xaena_db');
+    const db = client.db('xaena_debug');
     const ticketsCollection = db.collection('tickets');
     const closedTicketsCollection = db.collection('closed_tickets');
 
@@ -60,7 +62,6 @@ export async function POST(request: Request) {
 
     const { ticketsToProcess } = body;
 
-    // Fetch all existing tickets in one query
     const existingTickets = await ticketsCollection
       .find({
         Incident: { $in: ticketsToProcess.map((t: Ticket) => t.Incident) },
@@ -75,7 +76,6 @@ export async function POST(request: Request) {
     const closeOps = [];
     const currentTime = getWIBTime();
 
-    // Process all tickets without awaiting individual operations
     for (const ticket of ticketsToProcess) {
       const existingTicket = existingTicketsMap.get(ticket.Incident) as Ticket | null;
 
@@ -83,50 +83,46 @@ export async function POST(request: Request) {
         throw new Error('Operation timeout');
       }
 
-      const shouldClose = shouldCloseTicket(ticket, existingTicket);
-
       if (existingTicket) {
-        if (existingTicket.status === 'Completed' && !isMaxEscalationLevel(existingTicket)) {
+        if (ticket.status === 'Completed' && isMaxEscalationLevel(ticket)) {
+          // Close the ticket if it's completed and at max escalation level
+          closeOps.push({
+            insertOne: {
+              document: {
+                ...ticket,
+                action: 'Closed',
+                closedAt: new Date().toISOString(),
+              },
+            },
+          });
+
+          bulkOps.push({
+            deleteOne: {
+              filter: { Incident: ticket.Incident },
+            },
+          });
+        } else if (existingTicket.status === 'Completed' && !isMaxEscalationLevel(existingTicket)) {
+          // Set to Pending if completed but not at max level
           bulkOps.push({
             updateOne: {
               filter: { Incident: ticket.Incident },
               update: {
                 $set: {
-                  status: 'Active',
+                  status: 'Pending',
                   level: escalateLevel(existingTicket.level),
                   lastUpdated: currentTime,
                 },
               },
             },
           });
-        } else if (shouldClose) {
-          if (existingTicket.status === 'Completed') { // Validasi tambahan
-            closeOps.push({
-              updateOne: {
-                filter: { ticketId: ticket.Incident },
-                update: {
-                  $set: {
-                    action: 'Closed',
-                    timestamp: currentTime,
-                  },
-                },
-                upsert: true,
-              },
-            });
-
-            bulkOps.push({
-              deleteOne: {
-                filter: { Incident: ticket.Incident },
-              },
-            });
-          }
         } else {
+          // Update the ticket
           bulkOps.push({
             updateOne: {
               filter: { Incident: ticket.Incident },
               update: {
                 $set: {
-                  level: assignLevelBasedOnTTR(ticket),
+                  level: ticket.level || existingTicket.level,
                   assignedTo: ticket.assignedTo ?? existingTicket.assignedTo,
                   lastAssignedTime: ticket.lastAssignedTime ?? existingTicket.lastAssignedTime,
                   status: ticket.status ?? existingTicket.status,
@@ -137,11 +133,12 @@ export async function POST(request: Request) {
           });
         }
       } else {
+        // Insert new ticket
         bulkOps.push({
           insertOne: {
             document: {
               ...ticket,
-              level: assignLevelBasedOnTTR(ticket),
+              level: ticket.level || assignLevelBasedOnTTR(ticket),
               assignedTo: ticket.assignedTo ?? null,
               lastAssignedTime: ticket.lastAssignedTime ?? null,
               status: 'Open',
@@ -152,13 +149,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // Execute all operations in parallel
-    const [bulkWriteResult] = await Promise.all([
+    const [bulkWriteResult, closeWriteResult] = await Promise.all([
       bulkOps.length > 0 ? ticketsCollection.bulkWrite(bulkOps) : null,
       closeOps.length > 0 ? closedTicketsCollection.bulkWrite(closeOps) : null,
     ]);
 
-    // After bulkWrite finishes, fetch updated tickets
     if (bulkWriteResult) {
       const updatedTickets = await ticketsCollection.find({}).toArray();
       console.log('Updated tickets:', updatedTickets);
@@ -168,6 +163,7 @@ export async function POST(request: Request) {
       success: true,
       modifiedCount: bulkWriteResult?.modifiedCount ?? 0,
       insertedCount: bulkWriteResult?.insertedCount ?? 0,
+      closedCount: closeWriteResult?.insertedCount ?? 0,
     });
   } catch (error) {
     console.error('Error processing tickets:', error);
@@ -178,3 +174,4 @@ export async function POST(request: Request) {
     }, { status: 500 });
   }
 }
+
