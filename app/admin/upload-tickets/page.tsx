@@ -83,68 +83,109 @@ export default function UploadTickets() {
     }
   }, [toast])
 
+  const fetchLastUploadTime = useCallback(async () => {
+    try {
+      const response = await fetch('/api/lastUploadTime')
+      if (response.ok) {
+        const data = await response.json()
+        setLastUploadTime(data.lastUploadTime ? new Date(data.lastUploadTime) : null)
+      } else {
+        throw new Error('Failed to fetch last upload time')
+      }
+    } catch (error) {
+      console.error('Error fetching last upload time:', error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch last upload time. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }, [toast])
+
   useEffect(() => {
     fetchExistingTickets()
     fetchLoggedInUsers()
-  }, [fetchExistingTickets, fetchLoggedInUsers])
+    fetchLastUploadTime()
+  }, [fetchExistingTickets, fetchLoggedInUsers, fetchLastUploadTime])
 
-  useEffect(() => {
-    const storedLastUploadTime = localStorage.getItem('lastUploadTime')
-    if (storedLastUploadTime) {
-      setLastUploadTime(new Date(storedLastUploadTime))
-    }
-  }, [])
+//  useEffect(() => {
+ //   const storedLastUploadTime = localStorage.getItem('lastUploadTime')
+ //   if (storedLastUploadTime) {
+ //     setLastUploadTime(new Date(storedLastUploadTime))
+  //  }
+ // }, [])
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      setIsUploading(true)
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: async (results) => {
-          const tickets = (results.data as Record<string, string | undefined>[]).map((row): Ticket => ({
-            Incident: row.Incident || '',
-            SID: row.SID,
-            TTR: row.TTR || '00:00:00',
-            category: row.category,
-            status: 'Open',
-          })).filter((ticket) => ticket.Incident.trim() !== '')
+ const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0]
+  if (file) {
+    setIsUploading(true)
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const tickets = (results.data as Record<string, string | undefined>[]).map((row): Ticket => ({
+          Incident: row.Incident || '',
+          SID: row.SID,
+          TTR: row.TTR || '00:00:00',
+          category: row.category,
+          status: 'Open',
+        })).filter((ticket) => ticket.Incident.trim() !== '')
 
-          try {
-            setIsCategorizing(true)
-            const categorizedTickets = await fetchFilterCategories(tickets)
-            setCsvData(categorizedTickets)
-            setLastUploadTime(new Date())
-            localStorage.setItem('lastUploadTime', new Date().toISOString())
-            toast({
-              title: "CSV Uploaded",
-              description: `${categorizedTickets.length} tickets have been uploaded and categorized.`,
-            })
-          } catch (error: unknown) {
-            console.error('Error categorizing tickets:', error)
-            toast({
-              title: "Categorization Error",
-              description: "There was an error categorizing the tickets.",
-              variant: "destructive",
-            })
-          } finally {
-            setIsUploading(false)
-            setIsCategorizing(false)
-          }
-        },
-        error: (error: unknown) => {
-          console.error("Error parsing CSV:", error)
+        try {
+          setIsCategorizing(true)
+          const categorizedTickets = await fetchFilterCategories(tickets)
+          setCsvData(categorizedTickets)
+          await updateLastUploadTime()
           toast({
-            title: "Upload Error",
-            description: "Failed to parse CSV file.",
+            title: "CSV Uploaded",
+            description: `${categorizedTickets.length} tickets have been uploaded and categorized.`,
+          })
+        } catch (error: unknown) {
+          console.error('Error categorizing tickets:', error)
+          toast({
+            title: "Categorization Error",
+            description: "There was an error categorizing the tickets.",
             variant: "destructive",
           })
+        } finally {
           setIsUploading(false)
-        },
-      })
-    }
+          setIsCategorizing(false)
+        }
+      },
+      error: (error: unknown) => {
+        console.error("Error parsing CSV:", error)
+        toast({
+          title: "Upload Error",
+          description: "Failed to parse CSV file.",
+          variant: "destructive",
+        })
+        setIsUploading(false)
+      },
+    })
   }
+}
+
+const updateLastUploadTime = async () => {
+  try {
+    const response = await fetch('/api/lastUploadTime', {
+      method: 'POST',
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to update last upload time')
+    }
+
+    const data = await response.json()
+    setLastUploadTime(new Date(data.lastUploadTime))
+  } catch (error) {
+    console.error('Error updating last upload time:', error)
+    toast({
+      title: "Error",
+      description: "Failed to update last upload time.",
+      variant: "destructive",
+    })
+  }
+}
 
   const fetchFilterCategories = async (tickets: Ticket[]): Promise<Ticket[]> => {
     const response = await fetch('/api/filterCategories', {
