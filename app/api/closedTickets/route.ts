@@ -15,9 +15,16 @@ export async function POST(request: Request) {
     const { tickets } = await request.json();
     console.log("Received Tickets to Close:", tickets);
 
+    if (!Array.isArray(tickets) || tickets.length === 0) {
+      return NextResponse.json({
+        error: 'Invalid or empty tickets array',
+      }, { status: 400 });
+    }
+
     // Validate each ticket in the array
     for (const ticket of tickets) {
       if (!ticket.Incident || !ticket.action || !ticket.details) {
+        console.error('Invalid ticket:', ticket);
         return NextResponse.json({
           error: 'Missing required fields: Incident, action, or details',
         }, { status: 400 });
@@ -25,20 +32,28 @@ export async function POST(request: Request) {
     }
 
     // Insert the tickets into the closed_tickets collection
-    await closedTicketsCollection.insertMany(
+    const insertResult = await closedTicketsCollection.insertMany(
       tickets.map((ticket: { closedAt: string | number | Date; }) => ({
         ...ticket,
         closedAt: new Date(ticket.closedAt), // Ensure closedAt is a Date object
       }))
     );
 
+    console.log('Inserted closed tickets:', insertResult.insertedCount);
+
     // Now remove the closed tickets from the `tickets` collection
     const incidentIds = tickets.map((ticket: { Incident: any; }) => ticket.Incident);
-    await ticketsCollection.deleteMany({
+    const deleteResult = await ticketsCollection.deleteMany({
       Incident: { $in: incidentIds },
     });
 
-    return NextResponse.json({ message: 'Tickets closed and saved successfully' });
+    console.log('Deleted tickets from active collection:', deleteResult.deletedCount);
+
+    return NextResponse.json({ 
+      message: 'Tickets closed and saved successfully',
+      insertedCount: insertResult.insertedCount,
+      deletedCount: deleteResult.deletedCount
+    });
   } catch (error) {
     console.error('Error saving closed tickets:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
