@@ -23,7 +23,6 @@ export async function GET(request: Request) {
     const closedTicketsCollection = db.collection('closed_tickets');
 
     if (view === 'dashboard') {
-      // Hanya mengambil tiket yang belum selesai (status bukan 'Completed' atau 'Closed')
       const tickets = await ticketsCollection.find({
         status: { $nin: ['Completed', 'Closed'] }
       }).toArray();
@@ -36,9 +35,11 @@ export async function GET(request: Request) {
 
       const allCompletedTickets = [...completedTickets, ...closedTickets];
       return NextResponse.json(allCompletedTickets);
+    } else {
+      // Default behavior when no view parameter is provided
+      const allTickets = await ticketsCollection.find({}).toArray();
+      return NextResponse.json(allTickets);
     }
-
-    return NextResponse.json({ error: 'Invalid view parameter' }, { status: 400 });
   } catch (error) {
     console.error('Error fetching tickets:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
       if (existingTicket) {
         if (ticket.status === 'Completed' && isMaxEscalationLevel(ticket)) {
           // Close the ticket if it's completed and at max escalation level
+          console.log('Closing ticket:', ticket); // Debug log
           closeOps.push({
             insertOne: {
               document: {
@@ -153,6 +155,17 @@ export async function POST(request: Request) {
       bulkOps.length > 0 ? ticketsCollection.bulkWrite(bulkOps) : null,
       closeOps.length > 0 ? closedTicketsCollection.bulkWrite(closeOps) : null,
     ]);
+
+    try {
+      if (closeOps.length > 0) {
+        await closedTicketsCollection.bulkWrite(closeOps);
+        console.log('Tickets successfully closed:', closeOps.length);
+      }
+    } catch (err) {
+      console.error('Error writing to closed_tickets:', err);
+    }
+    
+
 
     if (bulkWriteResult) {
       const updatedTickets = await ticketsCollection.find({}).toArray();
