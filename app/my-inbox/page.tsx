@@ -72,8 +72,6 @@ export default function MyInbox() {
     }
   }, [toast])
 
-  
-
   const fetchNextTicketHandler = useCallback(async () => {
     try {
       if (!isWorking) {
@@ -275,9 +273,9 @@ export default function MyInbox() {
         throw new Error('Failed to update working status');
       }
 
-          // Successfully updated on the server, set local state
-    setIsWorking(true);
-    sessionStorage.setItem('isWorking', 'true');
+      // Successfully updated on the server, set local state
+      setIsWorking(true);
+      sessionStorage.setItem('isWorking', 'true');
   
       const response = await fetch('/api/ticketDistribution', {
         method: 'POST',
@@ -304,9 +302,9 @@ export default function MyInbox() {
     } catch (error) {
       console.error('Error during ticket distribution:', error);
 
-    // Reset working state on failure
-    setIsWorking(false);
-    sessionStorage.setItem('isWorking', 'false');
+      // Reset working state on failure
+      setIsWorking(false);
+      sessionStorage.setItem('isWorking', 'false');
       
       toast({
         title: "Error",
@@ -340,21 +338,61 @@ export default function MyInbox() {
     }
   }, [isPaused, pauseReason, toast])
 
-  const handleStopWorking = useCallback(() => {
-    setIsWorking(false)
-    setCurrentTicket(null)
-    setIsPaused(false)
-    setPauseReason('')
-    setPauseDuration(0)
-    setWorkingDuration(0)
-    sessionStorage.removeItem('isWorking')
-    sessionStorage.removeItem('currentTicket')
-    toast({
-      title: "Stopped Working",
-      description: "You have stopped working. Your progress has been saved.",
-      variant: "default",
-    })
-  }, [toast])
+  const handleStopWorking = useCallback(async () => {
+    try {
+      // Call API to update user's working status
+      const updateStatusResponse = await fetch('/api/updateUserStatus', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: loggedInUsername, isWorking: false }),
+      });
+
+      if (!updateStatusResponse.ok) {
+        throw new Error('Failed to update working status');
+      }
+
+      // Call API to redistribute tickets
+      const redistributeResponse = await fetch('/api/ticketDistribution', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: loggedInUsername, isCsvUpload: false }),
+      });
+
+      if (!redistributeResponse.ok) {
+        throw new Error('Failed to redistribute tickets');
+      }
+
+      // Reset local state
+      setIsWorking(false);
+      setCurrentTicket(null);
+      setIsPaused(false);
+      setPauseReason('');
+      setPauseDuration(0);
+      setWorkingDuration(0);
+      sessionStorage.removeItem('isWorking');
+      sessionStorage.removeItem('currentTicket');
+      sessionStorage.removeItem('isPaused');
+      sessionStorage.removeItem('pauseReason');
+      sessionStorage.removeItem('pauseStartTime');
+      sessionStorage.removeItem('workingDuration');
+
+      toast({
+        title: "Stopped Working",
+        description: "You have successfully stopped working and your tickets have been redistributed.",
+      });
+    } catch (error) {
+      console.error('Error stopping work:', error);
+      toast({
+        title: "Error",
+        description: "An error occurred while stopping work. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [loggedInUsername, toast]);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -405,8 +443,6 @@ export default function MyInbox() {
     }
   }, [loggedInUsername, router, toast]);
   
-  
-
   useEffect(() => {
     let activityTimeout: NodeJS.Timeout;
   
@@ -608,4 +644,3 @@ export default function MyInbox() {
     </main>
   )
 }
-
