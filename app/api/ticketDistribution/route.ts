@@ -38,7 +38,8 @@ function distributeTickets(
   processedTickets: string[],
   ticketHistory: Record<string, Set<string>>,
   maxTicketsPerAgent: number = 5,
-  isCsvUpload: boolean = false
+  isCsvUpload: boolean = false,
+  isUserWorking: boolean = false
 ): Ticket[] {
   const currentTime = Date.now();
 
@@ -115,6 +116,15 @@ function distributeTickets(
       console.log(`Closing ticket ${ticket.Incident} due to max escalation level`);
       return false;
     }
+    const lastUpdatedTime = ticket.lastAssignedTime || 0;
+    const shouldClose = 
+      ticket.status === 'Completed' &&
+      Date.now() - lastUpdatedTime >= 24 * 60 * 60 * 1000;
+    
+    if (shouldClose) {
+      console.log(`Closing ticket ${ticket.Incident} due to age`);
+      return false;
+    }
     return true;
   });
 
@@ -151,10 +161,14 @@ function distributeTickets(
 
   for (let i = 0; i < Math.min(remainingSlots, availableTickets.length); i++) {
     const ticket = availableTickets[i];
-    ticket.assignedTo = requestingUser;
-    ticket.lastAssignedTime = currentTime;
-    ticket.status = 'Active';
-    console.log(`Assigned ticket ${ticket.Incident} to ${requestingUser} with level ${ticket.level}`);
+    if (loggedInUsers.includes(requestingUser) && isUserWorking) {
+      ticket.assignedTo = requestingUser;
+      ticket.lastAssignedTime = currentTime;
+      ticket.status = 'Active';
+      console.log(`Assigned ticket ${ticket.Incident} to ${requestingUser} with level ${ticket.level}`);
+    } else {
+      console.log(`User ${requestingUser} is not working or not logged in. Ticket ${ticket.Incident} not assigned.`);
+    }
   }
 
   return tickets;
@@ -217,7 +231,8 @@ export async function POST(request: Request) {
       userProcessedTickets,
       ticketHistory,
       5,
-      isCsvUpload
+      isCsvUpload,
+      user.isWorking
     );
 
     const userTickets = distributedTickets.filter(ticket => 
@@ -280,4 +295,3 @@ export async function POST(request: Request) {
     }, { status: 500 });
   }
 }
-
