@@ -42,10 +42,22 @@ export default function MyInbox() {
   const [showUpdateAlert, setShowUpdateAlert] = useState(false)
   const [loggedInUsername, setLoggedInUsername] = useState<string | null>(null)
   const [availableLevels, setAvailableLevels] = useState<string[]>([])
+  const [ticketsProcessed, setTicketsProcessed] = useState(0)
   const { toast } = useToast()
   const router = useRouter()
 
   const auxReasons = ['Break', 'Meeting', 'Personal', 'Training']
+
+  const handleNoTicketsAvailable = useCallback(() => {
+    setCurrentTicket(null);
+    sessionStorage.removeItem('currentTicket');
+    setTicketsProcessed(0);
+    toast({
+      title: "No Tickets Available",
+      description: "There are no tickets available at the moment. Please wait for more tickets to be added.",
+      variant: "default",
+    });
+  }, [toast]);
 
   const fetchLoggedInUser = useCallback(async () => {
     try {
@@ -86,7 +98,7 @@ export default function MyInbox() {
       const response = await fetch('/api/ticketDistribution', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: loggedInUsername }),
+        body: JSON.stringify({ username: loggedInUsername, fetchNewTickets: true }),
       })
 
       if (!response.ok) throw new Error('Failed to fetch next ticket')
@@ -111,7 +123,7 @@ export default function MyInbox() {
         variant: "destructive",
       })
     }
-  }, [loggedInUsername, isWorking, toast])
+  }, [loggedInUsername, isWorking, toast, handleNoTicketsAvailable])
 
   useEffect(() => {
     const fetchTicketAndProgress = async () => {
@@ -205,37 +217,38 @@ export default function MyInbox() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username: loggedInUsername, maxTicketsPerAgent: 5 }),
+        body: JSON.stringify({ username: loggedInUsername, fetchNewTickets: ticketsProcessed >= 5 }),
       });
-  
+
       if (!response.ok) {
         throw new Error('Failed to fetch next ticket');
       }
-  
+
       const fetchedTickets = await response.json();
-      const unfinishedTickets = fetchedTickets.filter((ticket: Ticket) => ticket.status !== 'Completed');
-  
-      if (unfinishedTickets.length > 0) {
-        const nextTicket = unfinishedTickets[0];
+      if (fetchedTickets.length > 0) {
+        const nextTicket = fetchedTickets[0];
         setCurrentTicket(nextTicket);
         sessionStorage.setItem('currentTicket', JSON.stringify(nextTicket));
         setDetailCase(nextTicket["Detail Case"] || '');
         setAnalisa(nextTicket.Analisa || '');
         setEscalationLevel(nextTicket["Escalation Level"] || nextTicket.level || '');
         setAvailableLevels(getAvailableLevels(nextTicket));
-      } else {
-        // Redistribute tickets if no active tickets remain for this user
-        const response = await fetch(`/api/redistributeTickets`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ username: loggedInUsername }),
-        });
-  
-        if (response.ok) {
-          console.log('Redistribution triggered successfully');
+        
+        if (ticketsProcessed >= 5) {
+          setTicketsProcessed(1);
+        } else {
+          setTicketsProcessed(prev => prev + 1);
         }
+
+        // Check if this was the last available ticket
+        if (fetchedTickets.length === 1) {
+          toast({
+            title: "Last Available Ticket",
+            description: "This is the last available ticket. You'll need to wait for more tickets to be added.",
+            variant: undefined,
+          });
+        }
+      } else {
         handleNoTicketsAvailable();
       }
     } catch (error) {
@@ -246,22 +259,10 @@ export default function MyInbox() {
         variant: "destructive",
       });
     }
-  }, [loggedInUsername, getAvailableLevels, toast]);
+  }, [loggedInUsername, getAvailableLevels, handleNoTicketsAvailable, toast, ticketsProcessed]);
   
-  const handleNoTicketsAvailable = useCallback(() => {
-    setCurrentTicket(null)
-    sessionStorage.removeItem('currentTicket')
-    toast({
-      title: "No Tickets Available",
-      description: "There are no tickets available at the moment.",
-      variant: "default",
-    })
-  }, [toast])
 
   const handleStartWorking = useCallback(async () => {
-    setIsWorking(true);
-    sessionStorage.setItem('isWorking', 'true');
-  
     try {
       const statusUpdateResponse = await fetch('/api/updateUserStatus', {
         method: 'POST',
@@ -273,46 +274,22 @@ export default function MyInbox() {
         throw new Error('Failed to update working status');
       }
 
-      // Successfully updated on the server, set local state
       setIsWorking(true);
       sessionStorage.setItem('isWorking', 'true');
   
-      const response = await fetch('/api/ticketDistribution', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: loggedInUsername, maxTicketsPerAgent: 5 }),
+      toast({
+        title: "Started Working",
+        description: "You can now fetch new tickets.",
       });
-  
-      if (!response.ok) {
-        throw new Error('Failed to distribute tickets');
-      }
-  
-      const userTickets = await response.json();
-      if (userTickets.length > 0) {
-        const nextTicket = userTickets[0];
-        setCurrentTicket(nextTicket);
-        sessionStorage.setItem('currentTicket', JSON.stringify(nextTicket));
-        setDetailCase(nextTicket["Detail Case"] || '');
-        setAnalisa(nextTicket.Analisa || '');
-        setEscalationLevel(nextTicket["Escalation Level"] || nextTicket.level || '');
-        setAvailableLevels(getAvailableLevels(nextTicket));
-      } else {
-        handleNoTicketsAvailable();
-      }
     } catch (error) {
-      console.error('Error during ticket distribution:', error);
-
-      // Reset working state on failure
-      setIsWorking(false);
-      sessionStorage.setItem('isWorking', 'false');
-      
+      console.error('Error starting work:', error);
       toast({
         title: "Error",
         description: "An error occurred while starting to work. Please try again.",
         variant: "destructive",
       });
     }
-  }, [loggedInUsername, handleNoTicketsAvailable, getAvailableLevels, toast]);
+  }, [loggedInUsername, toast]);
 
   const handleAuxToggle = useCallback(() => {
     if (isPaused) {
@@ -335,6 +312,8 @@ export default function MyInbox() {
       setIsPaused(true)
       setPauseStartTime(Date.now())
       sessionStorage.setItem('isPaused', 'true')
+      sessionStorage.setItem('pauseReason', pauseReason)
+      sessionStorage.setItem('pauseStartTime', Date.now().toString())
     }
   }, [isPaused, pauseReason, toast])
 
@@ -373,6 +352,7 @@ export default function MyInbox() {
       setPauseReason('');
       setPauseDuration(0);
       setWorkingDuration(0);
+      setTicketsProcessed(0);
       sessionStorage.removeItem('isWorking');
       sessionStorage.removeItem('currentTicket');
       sessionStorage.removeItem('isPaused');
@@ -418,6 +398,7 @@ export default function MyInbox() {
         setPauseDuration(0);
         setWorkingDuration(0);
         setLoggedInUsername(null);
+        setTicketsProcessed(0);
   
         // Clear the cookies
         document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'; 
@@ -533,6 +514,7 @@ export default function MyInbox() {
       setAnalisa('');
       setEscalationLevel('');
 
+      // Automatically fetch the next ticket
       fetchNextTicket();
     } catch (error) {
       console.error('Error updating ticket:', error);
@@ -636,7 +618,10 @@ export default function MyInbox() {
             />
           ) : (
             isWorking && (
-              <NoTicketCard fetchNextTicket={fetchNextTicket} />
+              <NoTicketCard 
+                fetchNextTicket={fetchNextTicket} 
+                ticketsProcessed={ticketsProcessed}
+              />
             )
           )}
         </Suspense>
@@ -644,3 +629,4 @@ export default function MyInbox() {
     </main>
   )
 }
+
