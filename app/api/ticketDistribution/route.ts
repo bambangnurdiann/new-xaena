@@ -13,6 +13,9 @@ interface Ticket {
   level?: string;
   SID?: string;
   TTR?: number;
+  "Detail Case"?: string;
+  Analisa?: string;
+  "Escalation Level"?: string;
 }
 
 const REDISTRIBUTION_INTERVAL = 20 * 60 * 1000; // 20 minutes in milliseconds
@@ -53,7 +56,9 @@ function distributeTickets(
           ...ticket,
           status: 'Open',
           assignedTo: undefined,
-          lastAssignedTime: undefined
+          lastAssignedTime: undefined,
+          "Detail Case": '',
+          Analisa: '',
         };
       }
       return ticket;
@@ -67,12 +72,16 @@ function distributeTickets(
         existingTicket.status = 'Open';
         existingTicket.assignedTo = undefined;
         existingTicket.lastAssignedTime = undefined;
+        existingTicket["Detail Case"] = '';
+        existingTicket.Analisa = '';
       } else {
         tickets.push({
           ...pendingTicket,
           status: 'Open',
           assignedTo: undefined,
-          lastAssignedTime: undefined
+          lastAssignedTime: undefined,
+          "Detail Case": '',
+          Analisa: '',
         });
       }
     });
@@ -132,12 +141,13 @@ function distributeTickets(
     ticket => ticket.assignedTo === requestingUser && ticket.status === 'Active'
   ).length;
 
-  const remainingSlots = maxTicketsPerAgent - currentlyAssignedCount;
-
-  if (remainingSlots <= 0) {
-    console.log(`User ${requestingUser} has reached maximum ticket limit`);
+  if (currentlyAssignedCount > 0) {
+    console.log(`User ${requestingUser} still has ${currentlyAssignedCount} active tickets. No new tickets will be assigned.`);
     return tickets;
   }
+
+  const remainingSlots = maxTicketsPerAgent;
+
 
   const availableTickets = tickets.filter(
     ticket =>
@@ -196,16 +206,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'User is not working' });
     }
 
+    if (isCsvUpload) {
+      // Update all pending tickets to Open status in the database
+      const pendingTicketsUpdate = await ticketsCollection.updateMany(
+        { status: 'Pending' },
+        { 
+          $set: { 
+            status: 'Open',
+            assignedTo: null,
+            lastAssignedTime: null,
+            "Detail Case": '',
+            Analisa: '',
+          }
+        }
+      );
+      console.log(`Updated ${pendingTicketsUpdate.modifiedCount} pending tickets to Open status in database`);
+    }
+
     const ticketsFromDb = await ticketsCollection.find({}).toArray();
     const tickets: Ticket[] = ticketsFromDb.map(doc => ({
       Incident: doc.Incident,
       assignedTo: doc.assignedTo,
       lastAssignedTime: doc.lastAssignedTime,
-      status: doc.status,
+      status: isCsvUpload && doc.status === 'Pending' ? 'Open' : doc.status,
       category: doc.category,
       level: doc.level,
       SID: doc.SID,
       TTR: doc.TTR,
+      "Detail Case": isCsvUpload && doc.status === 'Pending' ? '' : doc["Detail Case"],
+      Analisa: isCsvUpload && doc.status === 'Pending' ? '' : doc.Analisa,
+      "Escalation Level": doc["Escalation Level"]
     }));
 
     const loggedInUsersFromDb = await usersCollection.find({ loggedIn: true }).toArray();
@@ -244,13 +274,16 @@ export async function POST(request: Request) {
         filter: { Incident: ticket.Incident },
         update: {
           $set: {
-            assignedTo: ticket.assignedTo,
-            lastAssignedTime: ticket.lastAssignedTime,
+            assignedTo: ticket.assignedTo || null,
+            lastAssignedTime: ticket.lastAssignedTime || null,
             status: ticket.status,
             category: ticket.category,
             level: ticket.level,
             SID: ticket.SID,
-            TTR: ticket.TTR
+            TTR: ticket.TTR,
+            "Detail Case": ticket["Detail Case"],
+            "Analisa": ticket.Analisa,
+            "Escalation Level": ticket["Escalation Level"]
           },
         },
         upsert: true,
@@ -284,6 +317,27 @@ export async function POST(request: Request) {
       });
 
       console.log(`Closed and moved ${ticketsToClose.length} tickets to closed_tickets collection`);
+    }
+
+    // Log status changes for pending tickets
+    const pendingTickets = distributedTickets.filter(ticket => ticket.status === 'Pending');
+    if (pendingTickets.length > 0) {
+      const pendingLogEntries = pendingTickets.map(ticket => ({
+        ticketId: ticket.Incident,
+        username: ticket.assignedTo || 'System',
+        action: 'Status Change',
+        timestamp: new Date(),
+        details: {
+          oldStatus: 'Completed',
+          newStatus: 'Pending',
+          level: ticket.level,
+          category: ticket.category,
+          "Escalation Level": ticket["Escalation Level"],
+        }
+      }));
+
+      await ticketLogCollection.insertMany(pendingLogEntries);
+      console.log(`Logged ${pendingTickets.length} pending ticket status changes`);
     }
 
     return NextResponse.json(userTickets);
