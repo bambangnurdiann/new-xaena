@@ -1,24 +1,40 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { RefreshCw } from 'lucide-react'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface NoTicketCardProps {
   fetchNextTicket: () => void
+  ticketsProcessed: number
 }
 
-export default function NoTicketCard({ fetchNextTicket }: NoTicketCardProps) {
+export default function NoTicketCard({ fetchNextTicket, ticketsProcessed }: NoTicketCardProps) {
+  const isTicketLimitReached = ticketsProcessed >= 5;
+  const noTicketsAvailable = ticketsProcessed === 0;
+
   return (
-    <Card className="bg-card text-card-foreground">
+    <Card>
       <CardHeader>
-        <CardTitle>No Active Ticket</CardTitle>
+        <CardTitle>
+          {noTicketsAvailable
+            ? "No Tickets Available"
+            : isTicketLimitReached
+            ? "Ticket Limit Reached"
+            : "No Current Ticket"}
+        </CardTitle>
       </CardHeader>
-      <CardContent className="text-center">
-        <p className="text-muted-foreground mb-4">There are no tickets assigned to you at the moment.</p>
-        <Button onClick={fetchNextTicket}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Check for New Tickets
-        </Button>
+      <CardContent>
+        <p>
+          {noTicketsAvailable
+            ? "There are no tickets available at the moment. Please wait for more tickets to be added."
+            : isTicketLimitReached
+            ? "You've processed 5 tickets. Click the button below to fetch the next batch of tickets."
+            : `You've processed ${ticketsProcessed} ticket${ticketsProcessed !== 1 ? 's' : ''}. Click the button below to fetch the next ticket.`}
+        </p>
       </CardContent>
+      <CardFooter>
+        <Button onClick={fetchNextTicket} disabled={noTicketsAvailable}>
+          {isTicketLimitReached ? "Fetch New Tickets" : "Fetch Next Ticket"}
+        </Button>
+      </CardFooter>
     </Card>
   )
 }
