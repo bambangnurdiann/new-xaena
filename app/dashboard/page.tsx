@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Ticket, UserCheck, AlertCircle, Clock } from 'lucide-react'
 import { useToast } from "@/components/ui/use-toast"
+import { ActiveAgentsList } from '@/components/ActiveAgentsList'
 import TicketList from '@/components/TicketList'
 
 interface TicketStats {
@@ -138,15 +139,9 @@ export default function Dashboard() {
               description="Tickets currently being worked on"
             />
           </div>
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Active Agents</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{ticketStats?.loggedInAgents || 0}</div>
-              <p className="text-xs text-muted-foreground">Agents currently logged in and available</p>
-            </CardContent>
-          </Card>
+          <div className="mt-6">
+            <ActiveAgentsList />
+          </div>
           <div className="mt-6">
             <TicketList />
           </div>
@@ -174,3 +169,4 @@ function StatsCard({ title, value, icon, description }: { title: string, value?:
     </Card>
   )
 }
+
