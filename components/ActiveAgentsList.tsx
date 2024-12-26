@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { formatDistanceToNow, isValid } from 'date-fns'
+import { formatDistanceToNow, isValid, parseISO } from 'date-fns'
 
 interface Agent {
   username: string
@@ -35,9 +35,13 @@ export function ActiveAgentsList() {
   }, [])
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A'
-    const date = new Date(dateString)
-    return isValid(date) ? formatDistanceToNow(date, { addSuffix: true }) : 'Invalid date'
+    if (!dateString || dateString === 'Never') return 'Never'
+    try {
+      const date = parseISO(dateString)
+      return isValid(date) ? formatDistanceToNow(date, { addSuffix: true }) : 'Invalid date'
+    } catch {
+      return 'Invalid date'
+    }
   }
 
   return (
@@ -70,12 +74,12 @@ export function ActiveAgentsList() {
                   <TableCell>{formatDate(agent.loginTime)}</TableCell>
                   <TableCell>{formatDate(agent.lastLogoutTime)}</TableCell>
                   <TableCell>
-                  <Badge 
+                    <Badge 
                       variant={agent.isWorking ? "default" : "secondary"}
                       className={agent.isWorking ? "bg-green-500 text-white" : "bg-gray-300 text-gray-800"}
                     >
                       {agent.isWorking ? 'Working' : 'Idle'}
-                      </Badge>
+                    </Badge>
                   </TableCell>
                 </TableRow>
               ))}
