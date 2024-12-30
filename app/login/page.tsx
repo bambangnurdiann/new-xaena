@@ -39,7 +39,7 @@ export default function LoginPage() {
           })
 
           if (userData.loggedInUsers[0] === '96312') {
-            router.push('/admin/upload-tickets')
+            router.push('/upload-tickets')
           } else {
             router.push('/dashboard')
           }
