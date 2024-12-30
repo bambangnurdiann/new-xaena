@@ -171,7 +171,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 >
                   <ScrollArea className="flex-1">
                     <div className="p-4 flex items-center justify-between">
-                      {isSidebarOpen && <span className="font-bold text-lg">Dashboard</span>}
+                      {isSidebarOpen && <span className="font-bold text-lg">New Xaena</span>}
                       <Button variant="ghost" size="icon" onClick={toggleSidebar}>
                         <Menu className="h-6 w-6" />
                       </Button>
