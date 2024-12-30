@@ -20,7 +20,7 @@ interface Ticket {
   Analisa?: string
   "Escalation Level"?: string
   assignedTo?: string
-  lastAssignedTime?: number
+  lastAssignedTime?: string
   status?: string
   category?: string
   level?: string
@@ -629,3 +629,4 @@ export default function MyInbox() {
     </main>
   )
 }
+
