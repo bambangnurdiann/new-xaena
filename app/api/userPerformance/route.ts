@@ -4,7 +4,7 @@ import clientPromise from '@/lib/mongodb'
 export async function GET() {
   try {
     const client = await clientPromise
-    const db = client.db("xaena_debug")
+    const db = client.db("xaena_db")
     const ticketsCollection = db.collection('tickets')
     const closedTicketsCollection = db.collection('closed_tickets')
     const usersCollection = db.collection('login_user')
