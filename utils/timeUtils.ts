@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 export function calculateDuration(startTime: Date): string {
     const now = new Date();
     const diff = now.getTime() - startTime.getTime();
