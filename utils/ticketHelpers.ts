@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 export interface Ticket {
   Incident: string;
   assignedTo?: string;
