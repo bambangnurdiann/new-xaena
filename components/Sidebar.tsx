@@ -31,7 +31,7 @@ export default function Sidebar({ isSidebarOpen, toggleSidebar }: SidebarProps) 
           <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} />
           <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} />
           {currentUser === '96312' && (
-            <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
+            <NavItem href="/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} />
           )}
           <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} />
         </nav>
