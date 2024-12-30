@@ -7,7 +7,7 @@ export async function middleware(request: NextRequest) {
     '/dashboard',
     '/home',
     '/my-inbox',
-    '/admin/upload-tickets',
+    '/upload-tickets',
     '/ticket-log'
   ];
 
@@ -57,7 +57,7 @@ export const config = {
     '/dashboard/:path*',
     '/home',
     '/my-inbox',
-    '/admin/upload-tickets',
+    '/upload-tickets',
     '/ticket-log',
     '/login',
   ],
