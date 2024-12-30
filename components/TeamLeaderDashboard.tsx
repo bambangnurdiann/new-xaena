@@ -116,7 +116,7 @@ export function TeamLeaderDashboard() {
       
       <Card>
         <CardHeader>
-          <CardTitle>Today's Performance Overview</CardTitle>
+          <CardTitle>Today Performance Overview</CardTitle>
         </CardHeader>
         <CardContent>
           <PerformanceChart data={userPerformance} />
