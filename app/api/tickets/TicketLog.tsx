@@ -24,6 +24,7 @@ interface Ticket {
   'Escalation Level'?: string;
   level?: string;
   closedAt?: string;
+  lastAssignedTime?: string;
 }
 
 export default function TicketLog() {
@@ -59,7 +60,7 @@ export default function TicketLog() {
         .map((ticket: Ticket) => ({
           ...ticket,
           username: ticket.assignedTo || "N/A",
-          timestamp: ticket.lastUpdated || ticket.closedAt || "Unknown",
+          timestamp: ticket.lastUpdated || ticket.closedAt || ticket.lastAssignedTime || "Unknown",
           action: ticket.closedAt ? "Closed" : ticket.status || "N/A",
         }))
         .filter((ticket: Ticket) => {
@@ -341,7 +342,16 @@ export default function TicketLog() {
                       <TableCell>{new Date(entry.timestamp).toLocaleString()}</TableCell>
                       <TableCell className="font-medium">{entry.Incident}</TableCell>
                       <TableCell>{entry.assignedTo || "N/A"}</TableCell>
-                      <TableCell>{entry.action}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          entry.action === 'Pending' ? 'bg-yellow-200 text-yellow-800' :
+                          entry.action === 'Active' ? 'bg-green-200 text-green-800' :
+                          entry.action === 'Completed' ? 'bg-blue-200 text-blue-800' :
+                          entry.action === 'Closed' ? 'bg-red-200 text-red-800' : 'bg-gray-200 text-gray-800'
+                        }`}>
+                          {entry.action}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         {entry['Detail Case'] || entry.Analisa || entry['Escalation Level'] || entry.level ? (
                           <ul className="list-none space-y-1">
