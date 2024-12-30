@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     const view = searchParams.get('view');
 
     const client = await clientPromise;
-    const db = client.db('xaena_db');
+    const db = client.db('xaena_debug');
     const ticketsCollection = db.collection('tickets');
     const closedTicketsCollection = db.collection('closed_tickets');
 
@@ -28,13 +28,14 @@ export async function GET(request: Request) {
       }).toArray();
       return NextResponse.json(tickets);
     } else if (view === 'log') {
-      const [completedTickets, closedTickets] = await Promise.all([
-        ticketsCollection.find({ status: { $in: ['Completed', 'Closed'] } }).toArray(),
+      const [activeTickets, completedTickets, closedTickets] = await Promise.all([
+        ticketsCollection.find({ status: { $in: ['Pending', 'Active'] } }).toArray(),
+        ticketsCollection.find({ status: 'Completed' }).toArray(),
         closedTicketsCollection.find({}).toArray()
       ]);
 
-      const allCompletedTickets = [...completedTickets, ...closedTickets];
-      return NextResponse.json(allCompletedTickets);
+      const allLogTickets = [...activeTickets, ...completedTickets, ...closedTickets];
+      return NextResponse.json(allLogTickets);
     } else {
       // Default behavior when no view parameter is provided
       const allTickets = await ticketsCollection.find({}).toArray();
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     const TIMEOUT = 8000; // 8 seconds to allow for response time
 
     const client = await clientPromise;
-    const db = client.db('xaena_db');
+    const db = client.db('xaena_debug');
     const ticketsCollection = db.collection('tickets');
     const closedTicketsCollection = db.collection('closed_tickets');
 
