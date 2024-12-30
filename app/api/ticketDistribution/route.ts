@@ -7,7 +7,7 @@ type TicketStatus = 'Open' | 'Active' | 'Completed' | 'Pending';
 interface Ticket {
   Incident: string;
   assignedTo?: string;
-  lastAssignedTime?: number;
+  lastAssignedTime?: string; // Changed from number to string
   status: TicketStatus;
   category?: string;
   level?: string;
@@ -44,7 +44,7 @@ function distributeTickets(
   isCsvUpload: boolean = false,
   isUserWorking: boolean = false
 ): Ticket[] {
-  const currentTime = Date.now();
+  const currentTime = new Date().toISOString();
 
   if (isCsvUpload) {
     console.log('Processing CSV upload redistribution...');
@@ -94,7 +94,7 @@ function distributeTickets(
     if (
       ticket.status === "Active" &&
       ticket.lastAssignedTime &&
-      currentTime - ticket.lastAssignedTime >= REDISTRIBUTION_INTERVAL
+      new Date().getTime() - new Date(ticket.lastAssignedTime).getTime() >= REDISTRIBUTION_INTERVAL
     ) {
       ticket.assignedTo = undefined;
       ticket.lastAssignedTime = undefined;
@@ -103,17 +103,20 @@ function distributeTickets(
     }
   });
 
+  // Handle completed tickets becoming pending
   tickets.forEach(ticket => {
     if (ticket.status === 'Completed' && !isMaxEscalationLevel(ticket)) {
       const currentLevel = ticket.level;
+      const currentAssignedTo = ticket.assignedTo; // Preserve the assignedTo
+      
       ticket.status = 'Pending';
       ticket.level = escalateLevel(currentLevel);
-      ticket.assignedTo = undefined;
-      ticket.lastAssignedTime = undefined;
+      ticket.assignedTo = currentAssignedTo; // Keep the same assignedTo
+      ticket.lastAssignedTime = currentTime;
       
       if (!pendingTickets.some(p => p.Incident === ticket.Incident)) {
         pendingTickets.push(ticket);
-        console.log(`Ticket ${ticket.Incident} moved to Pending status with escalated level ${ticket.level}`);
+        console.log(`Ticket ${ticket.Incident} moved to Pending status with escalated level ${ticket.level}, assigned to ${currentAssignedTo}`);
       }
     } else if (ticket.status === 'Completed' && isMaxEscalationLevel(ticket)) {
       console.log(`Ticket ${ticket.Incident} is completed and at max level. It will be closed.`);
@@ -125,7 +128,7 @@ function distributeTickets(
       console.log(`Closing ticket ${ticket.Incident} due to max escalation level`);
       return false;
     }
-    const lastUpdatedTime = ticket.lastAssignedTime || 0;
+    const lastUpdatedTime = ticket.lastAssignedTime ? new Date(ticket.lastAssignedTime).getTime() : 0;
     const shouldClose = 
       ticket.status === 'Completed' &&
       Date.now() - lastUpdatedTime >= 24 * 60 * 60 * 1000;
@@ -147,7 +150,6 @@ function distributeTickets(
   }
 
   const remainingSlots = maxTicketsPerAgent;
-
 
   const availableTickets = tickets.filter(
     ticket =>
@@ -227,7 +229,7 @@ export async function POST(request: Request) {
     const tickets: Ticket[] = ticketsFromDb.map(doc => ({
       Incident: doc.Incident,
       assignedTo: doc.assignedTo,
-      lastAssignedTime: doc.lastAssignedTime,
+      lastAssignedTime: doc.lastAssignedTime ? new Date(doc.lastAssignedTime).toISOString() : undefined,
       status: isCsvUpload && doc.status === 'Pending' ? 'Open' : doc.status,
       category: doc.category,
       level: doc.level,
@@ -275,7 +277,7 @@ export async function POST(request: Request) {
         update: {
           $set: {
             assignedTo: ticket.assignedTo || null,
-            lastAssignedTime: ticket.lastAssignedTime || null,
+            lastAssignedTime: ticket.lastAssignedTime ? new Date(ticket.lastAssignedTime) : null,
             status: ticket.status,
             category: ticket.category,
             level: ticket.level,
@@ -349,3 +351,4 @@ export async function POST(request: Request) {
     }, { status: 500 });
   }
 }
+
