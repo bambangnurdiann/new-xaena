@@ -203,7 +203,7 @@ export function TeamLeaderDashboard() {
                 <div key={user.username} className="flex items-center space-x-2 text-red-500 mb-2">
                   <AlertCircle size={16} />
                   <span>
-                    {user.username} needs attention: 
+                    {user.username} needs attention&colon; 
                     {user.averageTime !== null && user.averageTime > 120 && ` High average time (${user.averageTime.toFixed(2)} min)`}
                     {user.averageTime !== null && user.averageTime > 120 && user.activeTickets > 5 && ' and'}
                     {user.activeTickets > 5 && ` Too many active tickets (${user.activeTickets})`}
