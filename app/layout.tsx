@@ -3,7 +3,7 @@
 import './globals.css'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Home, LayoutDashboard, Ticket, Users, LogOut, Lock, Shield, User, Menu } from 'lucide-react'
+import { Home, LayoutDashboard, Ticket, Users, LogOut, Lock, Shield, User, Menu, BarChart } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -21,24 +21,24 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { toast, useToast } from "@/components/ui/use-toast"
 import { AnimatePresence, motion } from 'framer-motion'
-import router from 'next/router'
 
 // Peta judul halaman berdasarkan path
 const pageTitles: Record<string, string> = {
   '/home': 'Home',
   '/dashboard': 'Dashboard',
-  '/ticket-log': 'Ticket Log', // Judul untuk halaman Ticket Log
+  '/ticket-log': 'Ticket Log',
   '/my-inbox': 'My Inbox',
-  '/admin/upload-tickets': 'Upload Tickets',
+  '/upload-tickets': 'Upload Tickets',
+  '/admin': 'Performance Dashboard', // Add this line
   // Tambahkan path lainnya di sini
 }
-
-
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [currentUser, setCurrentUser] = useState<string | null>(null)
   const pathname = usePathname()
+  const { toast } = useToast()
+  const router = useRouter()
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
 
@@ -120,7 +120,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     window.addEventListener('mousemove', resetTimer);
     window.addEventListener('keydown', resetTimer);
 
-    resetTimer(); // Start the timer initially
+    resetTimer();
 
     return () => {
       clearTimeout(activityTimeout);
@@ -180,8 +180,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       <NavItem href="/home" icon={Home} label="Home" isOpen={isSidebarOpen} isActive={pathname === '/home'} />
                       <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isOpen={isSidebarOpen} isActive={pathname === '/dashboard'} />
                       <NavItem href="/my-inbox" icon={Ticket} label="My Inbox" isOpen={isSidebarOpen} isActive={pathname === '/my-inbox'} />
-                      <NavItem href="/admin/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} isActive={pathname === '/admin/upload-tickets'} />
+                      <NavItem href="/upload-tickets" icon={Users} label="Upload Tickets" isOpen={isSidebarOpen} isActive={pathname === '/upload-tickets'} />
                       <NavItem href="/ticket-log" icon={Ticket} label="Ticket Log" isOpen={isSidebarOpen} isActive={pathname === '/ticket-log'} />
+                      <NavItem href="/admin" icon={BarChart} label="Performance Dashboard" isOpen={isSidebarOpen} isActive={pathname === '/admin'} />
                     </nav>
                   </ScrollArea>
 
@@ -305,7 +306,6 @@ function ProfileMenu({ userId, isOpen }: { userId: string; isOpen: boolean }) {
     }
   };
   
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
